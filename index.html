@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drone Farm — code your harvest</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Drone Farm</h1>
+          <p>The farmer has been replaced. By your code.</p>
+        </div>
+      </div>
+      <div class="inventory" id="inventory"></div>
+      <div class="warp" id="warp" role="group" aria-label="Time warp"></div>
+    </header>
+
+    <main class="layout">
+      <section class="column">
+        <div class="card farm-card">
+          <div class="card-head">
+            <h2>Farm</h2>
+            <span class="muted" id="farm-meta"></span>
+          </div>
+          <canvas id="farm" aria-label="Farm grid"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Upgrades</h2>
+            <span class="muted" id="upgrade-meta"></span>
+          </div>
+          <div class="upgrades" id="upgrades"></div>
+        </div>
+      </section>
+
+      <section class="column wide">
+        <div class="card editor-card">
+          <div class="card-head">
+            <h2>main.py</h2>
+            <div class="toolbar">
+              <select id="examples" aria-label="Load example">
+                <option value="">Load example…</option>
+              </select>
+              <button id="run" class="btn primary">Run</button>
+              <span class="status" id="status"></span>
+            </div>
+          </div>
+          <div id="editor"></div>
+        </div>
+        <div class="split">
+          <div class="card">
+            <div class="card-head">
+              <h2>Output</h2>
+              <button id="clear" class="btn ghost small">Clear</button>
+            </div>
+            <div class="console" id="console"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Reference</h2></div>
+            <div class="docs" id="docs"></div>
+          </div>
+        </div>
+        <p class="footer">
+          Autosaves locally. <button id="reset" class="link">Reset progress</button>
+        </p>
+      </section>
+    </main>
+
+    <div class="overlay hidden" id="win">
+      <div class="win-card">
+        <h2>Fully automated.</h2>
+        <p>The farm runs itself. The farmer has officially been replaced.</p>
+        <button class="btn primary" id="win-close">Keep farming</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
