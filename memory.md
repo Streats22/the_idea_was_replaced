@@ -144,6 +144,12 @@ Owner’s PC has hard-crashed / needed RAM reseating. Crashing is not acceptable
 - Resolved with `Graphics`/`Iso` scale, 2D Almanac, `OmniLightPool`, smoke under `_world`, shared accents/status.
 - Refactor pass: `Iso.Mount`, `OmniLightPool`, `DungeonOverlay` file, fewer comments, DRY accents.
 
+### UI tiny in fullscreen
+
+- **Symptom**: HUD/signs stay ~14px while the window fills a large/Retina display.
+- **Cause**: no `window/stretch` — viewport grew with the window, font sizes stayed absolute.
+- **Fix**: `window/stretch/mode="canvas_items"`, `aspect="expand"` on a 1600×940 design size in `project.godot`. Restart Godot after changing it.
+
 ### 2026-09-27 — Commit/push/launch tooling
 
 - User-level installs (no sudo): .NET 8 at `~/.dotnet`, Godot 4.7.2 Mono at `~/Applications/GodotMono-4.7.2/Godot_mono.app`.
