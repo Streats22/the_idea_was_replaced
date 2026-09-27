@@ -156,7 +156,12 @@ public partial class App : Control
         if (text.Length > 0) body.AddChild(Ui.Para(text, Palette.Text, 14));
         card.AddChild(body);
         _toasts.AddChild(card);
-        while (_toasts.GetChildCount() > 5) _toasts.GetChild(0).QueueFree();
+        while (_toasts.GetChildCount() > 5)
+        {
+            var oldest = _toasts.GetChild(0);
+            _toasts.RemoveChild(oldest);
+            oldest.QueueFree();
+        }
         var tween = card.CreateTween();
         tween.TweenProperty(card, "modulate:a", 1f, 0.25f);
         tween.TweenInterval(seconds);
