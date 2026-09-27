@@ -8,21 +8,27 @@ namespace Delvework.Core.Sim;
 /// Everything needed to reproduce a delve exactly (together with the content pack).
 /// <see cref="Stratum"/> names a generated stratum or a hand-made floor.
 /// </summary>
-public sealed record DelveSetup(ulong Seed, string Stratum, IReadOnlyList<PartyMember> Party, int Tier = Tiers.Max, int? MaxTicks = null, Loadout? Loadout = null);
+/// <param name="Tablet">Lesson id of a rune tablet to lay on the floor, if any.</param>
+public sealed record DelveSetup(ulong Seed, string Stratum, IReadOnlyList<PartyMember> Party, int Tier = Tiers.Max, int? MaxTicks = null, Loadout? Loadout = null, string? Tablet = null);
 
 public static class Delve
 {
     /// <summary>Generate (or load) the floor for <paramref name="setup"/> and place the party on it.</summary>
     public static World Create(ContentPack content, DelveSetup setup)
     {
+        World? w = null;
         if (content.Strata.TryGetValue(setup.Stratum, out var stratum))
         {
-            var layout = Generator.Generate(stratum, setup.Seed);
-            return World.Create(content, layout, setup.Party, setup.Seed, setup.MaxTicks ?? stratum.MaxTicks, setup.Tier, setup.Loadout);
+            w = World.Create(content, Generator.Generate(stratum, setup.Seed), setup.Party, setup.Seed, setup.MaxTicks ?? stratum.MaxTicks, setup.Tier, setup.Loadout);
         }
-        if (content.Floors.TryGetValue(setup.Stratum, out var floor))
+        else if (content.Floors.TryGetValue(setup.Stratum, out var floor))
         {
-            return World.Create(content, floor.ToLayout(), setup.Party, setup.Seed, setup.MaxTicks ?? floor.MaxTicks, setup.Tier, setup.Loadout);
+            w = World.Create(content, floor.ToLayout(), setup.Party, setup.Seed, setup.MaxTicks ?? floor.MaxTicks, setup.Tier, setup.Loadout);
+        }
+        if (w is not null)
+        {
+            if (setup.Tablet is { } t) w.PlaceTablet(t);
+            return w;
         }
         var known = content.Strata.Keys.Concat(content.Floors.Keys).Order(StringComparer.Ordinal);
         throw new ContentException($"Unknown stratum or floor '{setup.Stratum}'. Known: {string.Join(", ", known)}");

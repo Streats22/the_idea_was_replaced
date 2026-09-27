@@ -19,7 +19,11 @@ public enum OutcomeKind
 /// How a delve ended. <see cref="Goods"/> are the materials that came home, by resource id;
 /// <see cref="Found"/> counts what the party saw and did for the Almanac (<c>seen:slime</c>, <c>killed:slime</c>, ...).
 /// </summary>
-public sealed record Outcome(OutcomeKind Kind, int Ticks, int Loot, IReadOnlyList<string> Broken, string Summary, IReadOnlyDictionary<string, int>? Goods = null, IReadOnlyDictionary<string, int>? Found = null);
+public sealed record Outcome(OutcomeKind Kind, int Ticks, int Loot, IReadOnlyList<string> Broken, string Summary, IReadOnlyDictionary<string, int>? Goods = null, IReadOnlyDictionary<string, int>? Found = null)
+{
+    /// <summary>Lesson ids of the rune tablets the party brought home.</summary>
+    public IReadOnlyList<string> Tablets { get; init; } = [];
+}
 
 /// <summary>
 /// The whole simulation state of one delve. <see cref="Tick"/> advances it by one fixed step
@@ -584,14 +588,21 @@ public sealed class World
         }
         for (var i = _drops.Count - 1; i >= 0; i--)
         {
-            if (_drops[i].Pos != n) continue;
             var d = _drops[i];
+            var reach = d.Tablets is { Count: > 0 } ? 1 : 0;
+            if (d.Pos.Manhattan(n) > reach) continue;
             g.Loot += d.Gold;
             g.Essence += d.Essence;
             if (d.Essence > 0) Discover("mined:" + Resources.Essence);
             var gains = new List<string>();
             if (d.Gold > 0) gains.Add($"+{d.Gold} gold");
             if (d.Essence > 0) gains.Add($"+{d.Essence} essence");
+            foreach (var t in d.Tablets ?? [])
+            {
+                g.Tablets.Add(t);
+                gains.Add($"the {TabletName(t)} rune");
+                _effects.Add(new Effect(EffectKind.Tablet, d.Pos, d.Pos));
+            }
             Say($"{g.Name} picks up {d.Label}" + (gains.Count > 0 ? $" ({string.Join(", ", gains)})" : ""));
             _drops.RemoveAt(i);
         }
@@ -672,11 +683,12 @@ public sealed class World
                     g.Hp = 0;
                     g.State = GolemState.Broken;
                     g.Pending = null;
-                    _drops.Add(new Drop(g.Pos, g.Loot, $"{g.Name}'s salvage", g.Essence));
+                    _drops.Add(new Drop(g.Pos, g.Loot, $"{g.Name}'s salvage", g.Essence, g.Tablets.Count > 0 ? [.. g.Tablets] : null));
                     _effects.Add(new Effect(EffectKind.Break, g.Pos, g.Pos));
                     Say($"{g.Name} breaks! Its salvage lies on the floor.", LogKind.Error);
                     g.Loot = 0;
                     g.Essence = 0;
+                    g.Tablets.Clear();
                     Array.Clear(g.Bag);
                 }
                 break;
@@ -751,6 +763,29 @@ public sealed class World
 
     public void AddDrop(Drop d) => _drops.Add(d);
 
+    private string TabletName(string lessonId) => Content.Lessons.FirstOrDefault(l => l.Id == lessonId)?.Title ?? lessonId;
+
+    /// <summary>
+    /// Lay a rune tablet on the way from the start to the stairs (a little past halfway), so a
+    /// party heading for the stairs walks right by it. Returns where it lies, or null if there's no way.
+    /// </summary>
+    public Pos? PlaceTablet(string lessonId)
+    {
+        var path = Paths.AStar(Start, Stairs, p => !Grid.IsWall(p));
+        if (path is null || path.Count < 3) return null;
+        bool Free(Pos p) => p != Start && p != Stairs && !_chests.Exists(c => c.Pos == p) && !_traps.Exists(t => t.Pos == p)
+            && !_monsters.Exists(m => m.Pos == p) && !_golems.Exists(g => g.Pos == p);
+        var from = path.Count * 11 / 20;
+        for (var k = 0; k < path.Count; k++)
+        {
+            var p = path[(from + k) % path.Count];
+            if (!Free(p)) continue;
+            _drops.Add(new Drop(p, 0, "a rune tablet", 0, [lessonId]));
+            return p;
+        }
+        return null;
+    }
+
     // ----- Outcome, hashing, cloning -----
 
     public Outcome Outcome()
@@ -779,10 +814,14 @@ public sealed class World
         }
         var essence = home.Sum(g => g.Essence);
         if (essence > 0) goods[Resources.Essence] = essence;
+        var tablets = home.SelectMany(g => g.Tablets).Distinct().ToList();
         var summary = $"{headline} {loot} gold came back.";
+        if (tablets.Count > 0) summary += $" Rune found: {string.Join(", ", tablets.Select(TabletName))}.";
         if (goods.Count > 0) summary += $" Brought home: {Resources.Format(goods)}.";
         if (broken.Count > 0) summary += $" Salvaged: {string.Join(", ", broken)}.";
-        return new Outcome(kind, Tick, loot, broken, summary, goods, new SortedDictionary<string, int>(_found, StringComparer.Ordinal));
+        var found = new SortedDictionary<string, int>(_found, StringComparer.Ordinal);
+        foreach (var t in tablets) found["tablet:" + t] = 1;
+        return new Outcome(kind, Tick, loot, broken, summary, goods, found) { Tablets = tablets };
     }
 
     public ulong StateHash()
@@ -794,7 +833,11 @@ public sealed class World
         foreach (var c in _chests) h = Fnv.Mix(h, c.Opened ? 1L : 0L);
         foreach (var v in _veins) h = Fnv.Mix(h, (long)v.Left);
         foreach (var t in _traps) h = Fnv.Mix(h, t.Revealed ? 1L : 0L);
-        foreach (var d in _drops) h = Fnv.Mix(Fnv.Mix(Fnv.Mix(h, (long)d.Pos.X), (long)d.Pos.Y), (long)d.Gold);
+        foreach (var d in _drops)
+        {
+            h = Fnv.Mix(Fnv.Mix(Fnv.Mix(h, (long)d.Pos.X), (long)d.Pos.Y), (long)d.Gold);
+            foreach (var t in d.Tablets ?? []) h = Fnv.Mix(h, t);
+        }
         foreach (var mk in _marks) h = Fnv.Mix(Fnv.Mix(h, mk.Label), (long)mk.CreatedTick);
         for (var i = 0; i < Known.Length; i += 64)
         {

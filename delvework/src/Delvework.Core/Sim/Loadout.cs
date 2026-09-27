@@ -74,6 +74,8 @@ public enum EffectKind
     Recall,
     /// <summary>A golem at <see cref="Effect.From"/> digs at the vein at <see cref="Effect.To"/>.</summary>
     Mine,
+    /// <summary>A rune tablet at <see cref="Effect.From"/> was picked up.</summary>
+    Tablet,
 }
 
 /// <summary>Something worth showing or playing a sound for, produced during one tick. Not part of the simulation state.</summary>

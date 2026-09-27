@@ -8,8 +8,8 @@ namespace Delvework.Game;
 
 /// <summary>
 /// Headless checks and screenshots, run with <c>-- --smoke</c> or
-/// <c>-- --screenshot=out.png --screen=town|title|codex|skills|lesson|delve|workshop|almanac|commissions|commission
-/// [--progress=N] [--gold=N] [--stock=N] [--lesson=id] [--page=N] [--site=id] [--tree=Village] [--workshop=id]
+/// <c>-- --screenshot=out.png --screen=town|title|grimoire|rune|skills|delve|workshop|almanac|commissions|commission
+/// [--progress=N] [--gold=N] [--stock=N] [--lesson=id] [--site=id] [--tree=Village] [--workshop=id]
 /// [--commission=id] [--script=file] [--tick=N] [--solution] [--result] [--time=0..1] [--found] [--category=name]</c>.
 /// Command-line runs use a throwaway profile and never touch the player's save.
 /// </summary>
@@ -33,28 +33,28 @@ public static class CommandLine
 
             Progress(app, Int("progress", 0), Int("gold", 137), Int("stock", 14));
             if (opts.ContainsKey("found")) FindMost(app);
-            var chosen = opts.TryGetValue("lesson", out var lid) ? app.Content.Lessons.First(l => l.Id == lid) : null;
-            var lesson = chosen ?? app.Progress.NextChallenge ?? app.Content.Lessons[0];
+            var lesson = opts.TryGetValue("lesson", out var lid) ? app.Content.Lessons.First(l => l.Id == lid) : app.Content.Lessons[Math.Min(1, app.Content.Lessons.Count - 1)];
             switch (opts.GetValueOrDefault("screen", "town"))
             {
                 case "title":
                     app.GoTitle();
                     break;
-                case "codex":
-                    app.GoCodex(chosen, Int("page", 0));
+                case "grimoire":
+                    app.GoTown();
+                    Help.Grimoire(app);
                     break;
-                case "reference":
-                    app.GoCodex(chosen).ShowReference();
+                case "rune":
+                    app.GoTown();
+                    await Frames(app, 2);
+                    RuneScroll.Show(app, lesson);
                     break;
                 case "skills":
                     app.GoSkills(Enum.Parse<SkillTree>(opts.GetValueOrDefault("tree", "Village")));
                     break;
-                case "lesson":
                 case "delve":
                 {
-                    if (opts.ContainsKey("solution")) app.Profile.Programs[Profile.LessonSlot(lesson.Id, lesson.Challenge.Party[0])] = lesson.Challenge.Solution;
-                    var site = opts.TryGetValue("site", out var sid) ? app.Content.Sites.First(s => s.Id == sid) : app.Progress.OpenSites.LastOrDefault();
-                    var screen = opts["screen"] == "lesson" || site is null ? app.GoLesson(lesson) : app.GoSite(site);
+                    var site = opts.TryGetValue("site", out var sid) ? app.Content.Sites.First(s => s.Id == sid) : app.Progress.OpenSites.Last();
+                    var screen = app.GoSite(site);
                     await Frames(app, 2);
                     screen.Run(apply: opts.ContainsKey("result"));
                     var last = screen.Timeline!.LastTick;
@@ -133,16 +133,11 @@ public static class CommandLine
         else if (!Help.Word(app, name)) throw new ArgumentException($"No help window called '{name}'");
     }
 
-    /// <summary>A profile that has learned (and passed the challenges of) <paramref name="lessons"/> features and bought everything it could along the way.</summary>
+    /// <summary>A profile that has found the runes of <paramref name="lessons"/> features and bought everything it could along the way.</summary>
     private static void Progress(App app, int lessons, int gold, int stock)
     {
         var p = app.Progress;
-        foreach (var l in p.Lessons.Take(lessons))
-        {
-            app.Profile.Gold = l.Cost;
-            if (!p.IsLearned(l) && !p.Learn(l)) throw new InvalidOperationException($"Could not learn {l.Id}");
-            p.Complete(l);
-        }
+        foreach (var l in p.Lessons.Take(lessons).Where(l => !p.IsLearned(l))) app.Profile.Learned.Add(l.Id);
         app.Profile.Gold = 100_000;
         Fill(app, 100_000);
         bool bought;
@@ -203,40 +198,24 @@ public static class CommandLine
         if (first.Timeline!.Outcome.Loot <= 0) throw new InvalidOperationException("The first program brought no gold home.");
         if (app.Profile.Amount(Resources.Ore) <= 0) throw new InvalidOperationException("The first program mined no ore.");
         GD.Print($"smoke: first delve with the starter program: {first.Timeline.Outcome.Summary}, {app.Profile.Gold} gold, {Resources.Format(app.Profile.Stock)}");
+        if (p.LearnedCount < 2) throw new InvalidOperationException("The first delve did not bring the Loops rune home.");
 
         Help.HowToPlay(app);
         Help.Functions(app);
+        Help.Grimoire(app);
         foreach (var b in Delvework.Core.Sim.GolemApi.Environment.Builtins.Where(b => b.Signature.Length > 0)) Help.Word(app, b.Name);
         foreach (var word in new[] { "while", "if", "def", "for", "on" }) Help.Word(app, word);
         await Frames(app, 2);
         GD.Print($"smoke: {app.WindowCount} help windows opened");
 
-        foreach (var lesson in app.Content.Lessons)
-        {
-            if (!p.IsLearned(lesson))
-            {
-                app.GoCodex(lesson);
-                await Frames(app, 1);
-                app.Profile.Gold = Math.Max(app.Profile.Gold, lesson.Cost);
-                if (!app.Learn(lesson)) throw new InvalidOperationException($"Could not learn {lesson.Id}.");
-                await Frames(app, 1);
-            }
-            for (var page = 0; page <= lesson.Pages.Count; page++)
-            {
-                app.GoCodex(lesson, page);
-                await Frames(app, 1);
-            }
-            foreach (var id in lesson.Challenge.Party) app.Profile.Programs[Profile.LessonSlot(lesson.Id, id)] = lesson.Challenge.Solution;
-            var screen = app.GoLesson(lesson);
-            await Frames(app, 1);
-            screen.Run(apply: true);
-            for (var t = 0; t <= screen.Timeline!.LastTick; t += 9) screen.SetPlayhead(t + 0.5);
-            await Frames(app, 1);
-            screen.ShowResultNow();
-            await Frames(app, 1);
-            if (!p.IsCompleted(lesson)) throw new InvalidOperationException($"Lesson {lesson.Id}: the solution did not pass in the game.");
-            GD.Print($"smoke: lesson {lesson.Tier} {lesson.Title}: passed, {app.Profile.Gold} gold");
-        }
+        var rest = p.Lessons.Where(l => !p.IsLearned(l)).Select(l => l.Id).ToList();
+        foreach (var id in rest) app.Profile.Learned.Add(id);
+        app.RunesLearned(rest);
+        await Frames(app, 2);
+        app.CloseAllModals();
+        foreach (var lesson in p.Lessons) Help.Topic(app, lesson);
+        await Frames(app, 1);
+        GD.Print($"smoke: {p.LearnedCount} runes known, {rest.Count} scrolls unrolled");
         app.Profile.Gold = 100_000;
         Fill(app, 100_000);
         foreach (var tree in app.Content.Trees)

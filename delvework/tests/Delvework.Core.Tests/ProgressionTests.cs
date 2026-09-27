@@ -226,7 +226,7 @@ public class ProgressionTests
     public void SomeNodesWaitForLessons()
     {
         var p = Fresh(gold: 1000, lessons: 2);
-        Assert.Equal("Learn Decisions at the Library first", p.LockReason(Node("v_forge")));
+        Assert.Equal("Find the Decisions rune in the mines first", p.LockReason(Node("v_forge")));
         p.Profile.Learned.Add(Content.Lessons[2].Id);
         Assert.Null(p.LockReason(Node("v_forge")));
     }
@@ -397,6 +397,61 @@ public class ProgressionTests
     }
 
     [Fact]
+    public void TheFirstDelveBringsHomeTheLoopsRune()
+    {
+        var p = Fresh();
+        var entrance = Content.Sites[0];
+        Assert.Equal("loops", p.TabletAt(entrance)?.Id);
+        var setup = p.SiteSetup(entrance, 1);
+        Assert.Equal("loops", setup.Tablet);
+        var (world, outcome) = Delve.Run(Content, setup);
+        Assert.Null(world.Golems[0].Error);
+        Assert.Equal(["loops"], outcome.Tablets);
+        Assert.Contains("Rune found:", outcome.Summary, StringComparison.Ordinal);
+        Assert.Equal(1, outcome.Found!["tablet:loops"]);
+        var reward = p.SiteReward(outcome, entrance);
+        Assert.Equal(["loops"], reward.Tablets);
+        p.Apply(reward);
+        Assert.Equal(2, p.KnownTier);
+        Assert.Equal("decisions", p.NextToLearn?.Id);
+    }
+
+    [Fact]
+    public void TabletsPlaceTheSameWayForTheSameSeed()
+    {
+        var setup = Fresh().SiteSetup(Content.Sites.First(s => s.Id == "mines"), 9);
+        Assert.Equal("loops", setup.Tablet);
+        var a = Delve.Create(Content, setup);
+        var b = Delve.Create(Content, setup);
+        Assert.Equal(a.StateHash(), b.StateHash());
+        var drop = Assert.Single(a.Drops, d => d.Tablets is { Count: > 0 });
+        Assert.Equal(drop.Pos, Assert.Single(b.Drops).Pos);
+        Assert.NotEqual(a.Start, drop.Pos);
+        Assert.NotEqual(a.Stairs, drop.Pos);
+    }
+
+    [Fact]
+    public void ShallowSitesRunOutOfRunes()
+    {
+        var p = Fresh(lessons: 4);
+        Assert.Null(p.TabletAt(Content.Sites.First(s => s.Id == "entrance")));
+        Assert.Null(p.TabletAt(Content.Sites.First(s => s.Id == "old_mines")));
+        Assert.Equal(p.NextToLearn, p.TabletAt(Content.Sites.First(s => s.Id == "mines")));
+        Assert.Equal("mines", p.TabletSite?.Id);
+        Assert.Null(p.SiteSetup(Content.Sites[0], 1).Tablet);
+        Assert.Null(Fresh(lessons: Content.Lessons.Count).TabletSite);
+    }
+
+    [Fact]
+    public void AnUnknownOrKnownTabletTeachesNothing()
+    {
+        var p = Fresh(lessons: 2);
+        var known = p.Profile.Learned.Count;
+        p.Apply(new DelveReward(0, 0, 0, 0) { Tablets = ["loops", "nonsense"] });
+        Assert.Equal(known, p.Profile.Learned.Count);
+    }
+
+    [Fact]
     public void OldProfilesKeepTheFeaturesTheyUnlockedByLessons()
     {
         var back = Profile.FromJson("{\"version\": 1, \"completed\": [\"commands\", \"loops\"]}");
@@ -450,7 +505,7 @@ public class ProgressionTests
         Assert.Equal(2, outcome.Goods!["stone"]);
         Assert.Equal(1, outcome.Goods["ore"]);
         Assert.Equal(1, outcome.Goods["wood"]);
-        Assert.Contains("Brought home: 2 stone, 1 iron ore, 1 wood", outcome.Summary, StringComparison.Ordinal);
+        Assert.Contains("Brought home: 1 wood, 2 stone, 1 iron ore", outcome.Summary, StringComparison.Ordinal);
     }
 
     [Fact]

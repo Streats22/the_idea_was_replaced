@@ -36,6 +36,7 @@ public partial class DungeonView3D : Control
     private readonly Dictionary<int, Figure> _golems = [];
     private readonly Dictionary<int, Figure> _monsters = [];
     private readonly List<Node3D> _coinPool = [];
+    private readonly List<Node3D> _tabletPool = [];
     private readonly List<MeshInstance3D> _sparkPool = [];
     private readonly List<MeshInstance3D> _beamPool = [];
     private readonly List<MeshInstance3D> _ringPool = [];
@@ -103,14 +104,19 @@ public partial class DungeonView3D : Control
             FocusMode = FocusModeEnum.None,
             TooltipText = "Keep the camera on the golems. Drag with the right mouse button to look around, scroll to zoom.",
         };
-        _followButton.SetAnchorsPreset(LayoutPreset.TopRight);
-        _followButton.Position = new Vector2(-130, 8);
+        _followButton.SetAnchorsPreset(LayoutPreset.BottomLeft);
+        _followButton.OffsetLeft = 16;
+        _followButton.OffsetTop = -148;
+        _followButton.OffsetBottom = -114;
         _followButton.Toggled += on => _follow = on;
         AddChild(_followButton);
         Iso.Aim(_camera, _target);
     }
 
     public Camera3D Camera => _camera;
+
+    /// <summary>How far left of the view's centre the party is framed, in screen pixels, to leave room for a panel on the right.</summary>
+    public float ShiftPixels { get; set; }
     public Timeline? Timeline => _timeline;
     public double Playhead => _playhead;
 
@@ -143,6 +149,7 @@ public partial class DungeonView3D : Control
         _target = _target.Lerp(desired, (float)Math.Min(1, delta * 4));
         _camera.Size = Mathf.Lerp(_camera.Size, _zoom, (float)Math.Min(1, delta * 8));
         Iso.Aim(_camera, _target);
+        _camera.HOffset = Mathf.Lerp(_camera.HOffset, Size.Y > 0 ? ShiftPixels * _camera.Size / Size.Y : 0, (float)Math.Min(1, delta * 6));
         _overlay.QueueRedraw();
     }
 
@@ -188,6 +195,7 @@ public partial class DungeonView3D : Control
         _golems.Clear();
         _monsters.Clear();
         _coinPool.Clear();
+        _tabletPool.Clear();
         _sparkPool.Clear();
         _beamPool.Clear();
         _ringPool.Clear();
@@ -465,10 +473,22 @@ public partial class DungeonView3D : Control
             _traps[i].Visible = f.TrapsRevealed[i] && f.Fog[grid.Idx(t.Pos)] > 0;
         }
         foreach (var c in _coinPool) c.Visible = false;
+        foreach (var t in _tabletPool) t.Visible = false;
         var used = 0;
+        var tablets = 0;
         foreach (var d in f.Drops)
         {
             if (f.Fog[grid.Idx(d.Pos)] == 0) continue;
+            if (d.Tablets is { Count: > 0 })
+            {
+                if (tablets == _tabletPool.Count) _tabletPool.Add(MakeTablet());
+                var slab = _tabletPool[tablets++];
+                var bob = (float)_time * 1.6f + d.Pos.X * 0.7f;
+                slab.Position = W(d.Pos, 0.08f + 0.05f * Mathf.Sin(bob));
+                slab.Rotation = new Vector3(0, 0.35f * Mathf.Sin(bob * 0.5f), 0);
+                slab.Visible = true;
+                continue;
+            }
             if (used == _coinPool.Count) _coinPool.Add(MakeCoins());
             var coins = _coinPool[used++];
             coins.Position = W(d.Pos, 0.1f);
@@ -540,6 +560,28 @@ public partial class DungeonView3D : Control
         }
         for (var i = used; i < _markPool.Count; i++) _markPool[i].Visible = false;
         for (var i = dots; i < _threadPool.Count; i++) _threadPool[i].Visible = false;
+    }
+
+    /// <summary>A standing stone slab with a glowing rune carved in it, on a small plinth.</summary>
+    private Node3D MakeTablet()
+    {
+        var node = new Node3D();
+        var stone = Iso.Rock(new Color("8a8478"), new Color("3e3a34"), 0.7f, "rune-tablet");
+        Iso.Box(node, new Vector3(0.46f, 0.08f, 0.26f), new Vector3(0, 0.04f, 0), stone);
+        Iso.Box(node, new Vector3(0.36f, 0.5f, 0.1f), new Vector3(0, 0.33f, 0), stone);
+        var rune = Iso.Glow(new Color("7fe0ff"), 4f);
+        Iso.Box(node, new Vector3(0.05f, 0.3f, 0.02f), new Vector3(0, 0.34f, 0.055f), rune);
+        Iso.Box(node, new Vector3(0.2f, 0.04f, 0.02f), new Vector3(0, 0.4f, 0.055f), rune);
+        Iso.Box(node, new Vector3(0.14f, 0.04f, 0.02f), new Vector3(0, 0.26f, 0.055f), rune);
+        node.AddChild(new MeshInstance3D
+        {
+            Mesh = new TorusMesh { InnerRadius = 0.34f, OuterRadius = 0.38f, Rings = 24, RingSegments = 4 },
+            Position = new Vector3(0, 0.02f, 0),
+            MaterialOverride = Iso.Glow(new Color("5dd3e8"), 2.5f),
+        });
+        Iso.Light(node, new Vector3(0, 0.7f, 0.3f), new Color("7fe0ff"), 1.6f, 3.2f);
+        _fx.AddChild(node);
+        return node;
     }
 
     private Node3D MakeCoins()
@@ -788,6 +830,9 @@ public partial class DungeonView3D : Control
                         break;
                     case EffectKind.Heal:
                         for (var i = 0; i < 8; i++) Spark(at, new Color("7bd88f"), age, i, 0.5f, 1.6f);
+                        break;
+                    case EffectKind.Tablet:
+                        for (var i = 0; i < 14; i++) Spark(at, new Color("7fe0ff"), age, i, 0.7f, 2.2f);
                         break;
                     case EffectKind.Reveal:
                     {

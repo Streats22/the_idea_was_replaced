@@ -12,7 +12,7 @@ public partial class TitleScreen : Control
         "Hollowmere was a mining town, until the tunnels below it filled with monsters and the miners left.\n\n" +
         "What they left behind are golems: stone workers that do exactly what their rune code tells them, nothing more.\n\n" +
         "You are the new Runewright. You can't go into the mines yourself, but you can write the code that sends the golems in. " +
-        "Your first golem already knows a few commands, like move(East). Send it in, bring gold home, and spend it in the Library on new features for its code: loops, decisions, variables and more.\n\n" +
+        "Your first golem already knows a few commands, like move(East). The old miners carved the rest of the language into rune tablets and left them in the tunnels. Send your golems in, carry the runes home, and they learn loops, decisions, variables and more.\n\n" +
         "Rebuild the village, forge equipment, learn spells. And if a golem walks into a wall, that's a bug: find it, fix it, send it back.";
 
     public override void _Ready()
@@ -43,8 +43,8 @@ public partial class TitleScreen : Control
         col.CustomMinimumSize = new Vector2(440, 0);
         AddChild(col);
 
-        col.AddChild(Ui.Heading("DELVEWORK", 64, Palette.Accent));
-        col.AddChild(Ui.Para("Write the code. Send the golems. Rebuild the village.", Palette.Muted, 17));
+        col.AddChild(Ui.Title("Delvework", 66, Palette.Accent));
+        col.AddChild(Ui.Banner("Write the code · Send the golems · Rebuild the village", 12, Palette.Muted));
         col.AddChild(new Control { CustomMinimumSize = new Vector2(0, 26) });
 
         if (App.HasSave)
@@ -53,7 +53,7 @@ public partial class TitleScreen : Control
             var cont = Big("Continue", primary: true);
             cont.Pressed += () => Go(() => App.GoTown());
             col.AddChild(cont);
-            col.AddChild(Ui.Label($"{p.LearnedCount} of {p.Lessons.Count} features · {App.Profile.Gold} gold · {p.OwnedNodes.Count()} skills", Palette.Muted, 13));
+            col.AddChild(Ui.Label($"{p.LearnedCount} of {p.Lessons.Count} runes · {App.Profile.Gold} gold · {p.OwnedNodes.Count()} skills", Palette.Muted, 13));
         }
         var fresh = Big("New game", primary: !App.HasSave);
         fresh.Pressed += () =>
@@ -100,7 +100,7 @@ public partial class TitleScreen : Control
         var no = Ui.Button("Cancel");
         var modal = App.ShowModal(Ui.Column(14,
             Ui.Heading("Start a new game?", 22),
-            Ui.Para("This replaces your saved progress: gold, skills, learned features and all your code.", Palette.Muted),
+            Ui.Para("This replaces your saved progress: gold, skills, found runes and all your code.", Palette.Muted),
             Ui.Row(8, Ui.Spacer(), no, yes)), 480);
         no.Pressed += () => App.CloseModal(modal);
         yes.Pressed += StartNewGame;
@@ -113,7 +113,7 @@ public partial class TitleScreen : Control
         var begin = Ui.Button("To the village", primary: true);
         App.CloseAllModals();
         var modal = App.ShowModal(Ui.Column(16,
-            Ui.Heading("Hollowmere", 30, Palette.Accent),
+            Ui.Banner("Hollowmere", 18),
             Ui.Para(Intro),
             Ui.Row(8, Ui.Spacer(), begin)), 640, dismissable: false);
         begin.Pressed += () =>

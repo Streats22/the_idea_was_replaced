@@ -9,7 +9,7 @@ namespace Delvework.Game;
 
 /// <summary>
 /// The root node: owns the content, the player's profile and the music, and switches between
-/// screens (title, town, Codex, skill trees, delve).
+/// screens (title, town, skill trees, workshops, Almanac, delve).
 /// </summary>
 public partial class App : Control
 {
@@ -29,7 +29,7 @@ public partial class App : Control
     public AudioDirector Audio { get; private set; } = null!;
     public bool HasSave { get; private set; }
 
-    /// <summary>Raised after a language feature is bought, so open screens can refresh.</summary>
+    /// <summary>Raised after new language features are learned, so open screens can refresh.</summary>
     public event Action? Learned;
 
     public override void _Ready()
@@ -150,11 +150,13 @@ public partial class App : Control
     /// <summary>A notice that slides in at the top right and fades away by itself.</summary>
     public void Toast(string title, string text, Color accent, float seconds = 4.5f)
     {
-        var card = new PanelContainer { CustomMinimumSize = new Vector2(320, 0), MouseFilter = MouseFilterEnum.Ignore, Modulate = new Color(1, 1, 1, 0) };
-        card.AddThemeStyleboxOverride("panel", Ui.Box(new Color(Palette.Panel, 0.95f), accent, 10, 12));
         var body = Ui.Column(2, Ui.Label(title, accent, 12));
         if (text.Length > 0) body.AddChild(Ui.Para(text, Palette.Text, 14));
-        card.AddChild(body);
+        var card = Ui.Frame(body, FrameKind.Plate, opacity: 0.96f);
+        card.Trim = accent;
+        card.CustomMinimumSize = new Vector2(320, 0);
+        card.MouseFilter = MouseFilterEnum.Ignore;
+        card.Modulate = new Color(1, 1, 1, 0);
         _toasts.AddChild(card);
         while (_toasts.GetChildCount() > 5)
         {
@@ -177,7 +179,7 @@ public partial class App : Control
         {
             Toast($"NEW IN THE ALMANAC · +{e.Reward} gold", $"{e.Title}: {e.Hint}", Palette.Accent);
         }
-        if (fresh.Count > 4) Toast("NEW IN THE ALMANAC", $"and {fresh.Count - 4} more entries. Open the Almanac in the Library to read them.", Palette.Accent);
+        if (fresh.Count > 4) Toast("NEW IN THE ALMANAC", $"and {fresh.Count - 4} more entries. Read them in the Almanac at the Library.", Palette.Accent);
         if (fresh.Count > 0) Audio.Play(Sfx.Unlock);
     }
 
@@ -193,12 +195,6 @@ public partial class App : Control
     {
         Audio.SetMood(Mood.Town);
         return Show(new TownScreen { App = this });
-    }
-
-    public CodexScreen GoCodex(LessonDef? lesson = null, int page = 0)
-    {
-        Audio.SetMood(Mood.Town);
-        return Show(new CodexScreen { App = this, Initial = lesson ?? Progress.NextToLearn ?? Progress.NextChallenge ?? Content.Lessons[^1], InitialPage = page });
     }
 
     public SkillScreen GoSkills(SkillTree tree)
@@ -225,12 +221,6 @@ public partial class App : Control
         return Show(new CommissionScreen { App = this, Initial = commission });
     }
 
-    public DelveScreen GoLesson(LessonDef lesson)
-    {
-        Audio.SetMood(Mood.Dungeon);
-        return Show(new DelveScreen { App = this, Lesson = lesson });
-    }
-
     public DelveScreen GoSite(DelveSite site)
     {
         Audio.SetMood(Mood.Dungeon);
@@ -238,19 +228,27 @@ public partial class App : Control
         return Show(new DelveScreen { App = this, Site = site });
     }
 
-    /// <summary>Buy a language feature and pop up its explanation.</summary>
-    public bool Learn(LessonDef lesson)
+    /// <summary>
+    /// Runes the party just brought home are learned already (<see cref="Progression.Apply"/>);
+    /// tell open screens, and unroll a scroll for each with the feature and a tiny example.
+    /// </summary>
+    public void RunesLearned(IReadOnlyList<string> tablets, Action? then = null)
     {
-        if (!Progress.Learn(lesson))
+        var runes = tablets.Select(id => Content.Lessons.FirstOrDefault(l => l.Id == id)).OfType<LessonDef>().ToList();
+        if (runes.Count == 0)
         {
-            Audio.Play(Sfx.Fail);
-            return false;
+            then?.Invoke();
+            return;
         }
         Save();
         Audio.Play(Sfx.Unlock);
         Learned?.Invoke();
-        Help.Topic(this, lesson, justLearned: true);
-        return true;
+        void Next(int i)
+        {
+            if (i < runes.Count) RuneScroll.Show(this, runes[i], () => Next(i + 1));
+            else then?.Invoke();
+        }
+        Next(0);
     }
 
     // ----- Help windows -----
@@ -290,10 +288,23 @@ public partial class App : Control
         var center = new CenterContainer();
         center.SetAnchorsPreset(LayoutPreset.FullRect);
         shade.AddChild(center);
-        var card = new PanelContainer { CustomMinimumSize = new Vector2(width, 0) };
-        card.AddThemeStyleboxOverride("panel", Ui.Box(Palette.Panel, Palette.Accent.Darkened(0.35f), 16, 26));
-        card.AddChild(content);
+        PanelContainer card;
+        if (content is Frame framed)
+        {
+            card = framed;
+        }
+        else
+        {
+            card = Ui.Frame(Ui.Pad(content, 10));
+        }
+        card.CustomMinimumSize = new Vector2(width, 0);
         center.AddChild(card);
+        card.PivotOffset = new Vector2(width / 2, 60);
+        card.Scale = new Vector2(0.96f, 0.96f);
+        card.Modulate = new Color(1, 1, 1, 0);
+        var pop = card.CreateTween().SetParallel();
+        pop.TweenProperty(card, "scale", Vector2.One, 0.18f).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
+        pop.TweenProperty(card, "modulate:a", 1f, 0.15f);
         if (dismissable)
         {
             shade.GuiInput += e =>
@@ -341,6 +352,14 @@ public partial class App : Control
         }
     }
 
+    /// <summary>A small cog that opens <see cref="ShowSettings"/>.</summary>
+    public Button SettingsButton()
+    {
+        var b = Ui.Button("⚙", "Settings: music and sound volume");
+        b.Pressed += ShowSettings;
+        return b;
+    }
+
     /// <summary>Settings dialog: music and sound volume.</summary>
     public void ShowSettings()
     {
@@ -359,7 +378,7 @@ public partial class App : Control
         };
         var close = Ui.Button("Done", primary: true);
         var body = Ui.Column(14,
-            Ui.Heading("Settings", 24),
+            Ui.Banner("Settings", 14),
             Ui.Row(12, Ui.Label("Music", Palette.Muted), Ui.Spacer(), music),
             Ui.Row(12, Ui.Label("Sound effects", Palette.Muted), Ui.Spacer(), sfx),
             Ui.Row(8, Ui.Spacer(), close));

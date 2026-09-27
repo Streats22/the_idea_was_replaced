@@ -2,8 +2,93 @@ using Godot;
 
 namespace Delvework.Game.View3D;
 
-/// <summary>A clickable place in town, shown as a floating signpost.</summary>
+/// <summary>A clickable place in town, shown as a wooden sign hanging over it.</summary>
 public sealed record TownSign(string Id, string Title, string Subtitle, bool Enabled, bool Highlight);
+
+/// <summary>
+/// A wooden plaque on two ropes, like the signs in the concept art: a carved title, a small line
+/// under it, an ember edge when it's where to go next.
+/// </summary>
+public partial class HangingSign : PanelContainer
+{
+    public const float RopeLength = 14;
+
+    public float Phase { get; init; }
+    public event Action? Pressed;
+
+    private readonly Label _title = Ui.Title("", 14, Palette.Parchment);
+    private readonly Label _sub = Ui.Label("", Palette.Parchment.Darkened(0.25f), 12);
+    private bool _enabled = true, _highlight, _hover;
+
+    public override void _Ready()
+    {
+        FocusMode = FocusModeEnum.None;
+        MouseDefaultCursorShape = CursorShape.PointingHand;
+        _title.HorizontalAlignment = HorizontalAlignment.Center;
+        _sub.HorizontalAlignment = HorizontalAlignment.Center;
+        _title.MouseFilter = _sub.MouseFilter = MouseFilterEnum.Ignore;
+        var col = Ui.Column(0, _title, _sub);
+        col.MouseFilter = MouseFilterEnum.Ignore;
+        AddChild(col);
+        MouseEntered += () => Hover(true);
+        MouseExited += () => Hover(false);
+        Restyle();
+    }
+
+    private void Hover(bool on)
+    {
+        _hover = on;
+        Restyle();
+    }
+
+    public void Set(TownSign s)
+    {
+        _title.Text = s.Title.ToUpperInvariant();
+        _sub.Text = s.Subtitle;
+        _sub.Visible = s.Subtitle.Length > 0;
+        _enabled = s.Enabled;
+        _highlight = s.Highlight;
+        if (IsInsideTree()) Restyle();
+    }
+
+    private void Restyle()
+    {
+        var wood = _enabled ? new Color("5a3a20") : new Color("3a2a1e");
+        if (_hover && _enabled) wood = wood.Lightened(0.12f);
+        var sb = Ui.Box(wood, _highlight ? Palette.Accent : new Color("24160b"), 3, 10);
+        sb.SetBorderWidthAll(2);
+        sb.ContentMarginLeft = sb.ContentMarginRight = 14;
+        sb.ContentMarginTop = 6;
+        sb.ContentMarginBottom = 7;
+        sb.ShadowColor = _highlight ? new Color(Palette.Accent, 0.45f) : new Color(0, 0, 0, 0.55f);
+        sb.ShadowSize = _highlight ? 12 : 6;
+        sb.ShadowOffset = _highlight ? Vector2.Zero : new Vector2(0, 3);
+        AddThemeStyleboxOverride("panel", sb);
+        Modulate = _enabled ? Colors.White : new Color(1, 1, 1, 0.7f);
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        var w = Size.X;
+        var rope = new Color("2a1c10");
+        foreach (var x in new[] { w * 0.22f, w * 0.78f })
+        {
+            DrawLine(new Vector2(x, -RopeLength), new Vector2(x, 2), rope, 2f);
+            DrawCircle(new Vector2(x, 4), 2.2f, Palette.BrassDim);
+        }
+        DrawLine(new Vector2(w * 0.12f, -RopeLength), new Vector2(w * 0.88f, -RopeLength), new Color("1c120a"), 3f);
+        var grain = new Color(0, 0, 0, 0.16f);
+        for (var y = 8f; y < Size.Y - 4; y += 9) DrawLine(new Vector2(5, y), new Vector2(w - 5, y), grain, 1f);
+    }
+
+    public override void _GuiInput(InputEvent e)
+    {
+        if (!_enabled || e is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }) return;
+        AcceptEvent();
+        Pressed?.Invoke();
+    }
+}
 
 /// <summary>
 /// The village of Hollowmere, in the same pixelated 2.5D look as the dungeon. Days pass slowly
@@ -36,14 +121,14 @@ public partial class TownView3D : Control
     private static readonly Dictionary<string, Vector3> SignSpots = new(StringComparer.Ordinal)
     {
         ["delve"] = new(0, 4.2f, -12.5f),
-        ["codex"] = new(-8, 4.6f, -1),
-        ["village"] = new(0, 3.2f, 0.5f),
+        ["library"] = new(-8, 4.6f, -1),
+        ["village"] = new(2, 2.8f, 0.5f),
         ["equipment"] = new(7, 4.2f, -4),
         ["arcana"] = new(-10, 9.5f, -8),
         ["smelter"] = new(5.5f, 4.4f, -9.5f),
         ["bakery"] = new(12.5f, 4.2f, 4.5f),
         ["farm"] = new(6, 2.6f, 10.5f),
-        ["commissions"] = new(-3.4f, 3f, 3.2f),
+        ["commissions"] = new(-4.2f, 3.4f, 3.2f),
     };
 
     /// <summary>Lots for the material buildings; trees keep clear of them.</summary>
@@ -57,7 +142,7 @@ public partial class TownView3D : Control
     private Camera3D _camera = null!;
     private Node3D _world = null!, _lots = null!;
     private Control _signLayer = null!;
-    private readonly Dictionary<string, Button> _signs = [];
+    private readonly Dictionary<string, HangingSign> _signs = [];
     private readonly List<Node3D> _wheels = [];
     private readonly List<(Node3D Node, Vector3 Base, float Phase)> _smoke = [];
     private readonly List<(Node3D Node, Vector3 Base, float Phase)> _fireflies = [];
@@ -198,20 +283,13 @@ public partial class TownView3D : Control
         {
             if (!_signs.TryGetValue(s.Id, out var b))
             {
-                b = new Button { FocusMode = FocusModeEnum.None, MouseDefaultCursorShape = CursorShape.PointingHand };
+                b = new HangingSign { Phase = _signs.Count * 1.7f };
                 var id = s.Id;
                 b.Pressed += () => Picked?.Invoke(id);
                 _signLayer.AddChild(b);
                 _signs[s.Id] = b;
             }
-            b.Text = s.Subtitle.Length > 0 ? $"{s.Title}\n{s.Subtitle}" : s.Title;
-            b.Disabled = !s.Enabled;
-            var border = s.Highlight ? Palette.Accent : Palette.Border.Lightened(0.2f);
-            b.AddThemeStyleboxOverride("normal", Ui.Box(new Color(Palette.Panel, 0.88f), border, 8, 8));
-            b.AddThemeStyleboxOverride("hover", Ui.Box(new Color(Palette.Panel2, 0.95f), Palette.Accent, 8, 8));
-            b.AddThemeStyleboxOverride("disabled", Ui.Box(new Color(Palette.Panel, 0.6f), Palette.Border, 8, 8));
-            b.AddThemeFontSizeOverride("font_size", 13);
-            b.AddThemeColorOverride("font_disabled_color", Palette.Muted);
+            b.Set(s);
         }
     }
 
@@ -251,6 +329,8 @@ public partial class TownView3D : Control
             var size = button.GetCombinedMinimumSize();
             button.Size = size;
             button.Position = screen - new Vector2(size.X / 2, size.Y);
+            button.PivotOffset = new Vector2(size.X / 2, -HangingSign.RopeLength);
+            button.Rotation = 0.025f * Mathf.Sin(t * 1.1f + button.Phase);
         }
     }
 

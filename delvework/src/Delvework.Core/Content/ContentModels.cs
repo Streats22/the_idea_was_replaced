@@ -305,6 +305,8 @@ public sealed record DelveSite
     /// <summary>A stratum id (random floor per seed) or a floor id.</summary>
     public string Stratum { get; init; } = "";
     public int Lessons { get; init; }
+    /// <summary>The highest feature tier whose rune tablet can lie on this site's floors.</summary>
+    public int Tablets { get; init; }
 }
 
 /// <summary>

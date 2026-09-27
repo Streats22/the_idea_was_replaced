@@ -102,6 +102,8 @@ public sealed class Golem : Actor
     public int[] Bag { get; private set; } = new int[Content.Resources.Mined.Count];
     /// <summary>Monster essence picked up from remains.</summary>
     public int Essence { get; set; }
+    /// <summary>Rune tablets carried (lesson ids); they teach the party once brought home.</summary>
+    public List<string> Tablets { get; private set; } = [];
     public int RecallStones { get; set; }
     public int Mana { get; set; }
     public int MaxMana { get; init; }
@@ -140,6 +142,7 @@ public sealed class Golem : Actor
             Loot = Loot,
             Bag = (int[])Bag.Clone(),
             Essence = Essence,
+            Tablets = [.. Tablets],
             RecallStones = RecallStones,
             Mana = Mana,
             MaxMana = MaxMana,
@@ -168,6 +171,7 @@ public sealed class Golem : Actor
         h = Fnv.Mix(Fnv.Mix(h, (long)Mana), (long)ShieldTicks);
         foreach (var s in Seen) h = Fnv.Mix(h, (long)s);
         foreach (var b in Bag) h = Fnv.Mix(h, (long)b);
+        foreach (var t in Tablets) h = Fnv.Mix(h, t);
         return Fnv.Mix(h, (long)Essence);
     }
 }
@@ -238,7 +242,8 @@ public sealed class Trap
     public bool Revealed { get; set; }
 }
 
-public sealed record Drop(Pos Pos, int Gold, string Label, int Essence = 0);
+/// <summary>Something lying on the floor: remains, salvage, or a rune tablet (<see cref="Tablets"/> holds lesson ids).</summary>
+public sealed record Drop(Pos Pos, int Gold, string Label, int Essence = 0, IReadOnlyList<string>? Tablets = null);
 
 public sealed record Mark(Pos Pos, string Label, int OwnerId, int CreatedTick);
 

@@ -22,6 +22,9 @@ public enum NodeStatus
 public sealed record DelveReward(int Loot, int Bonus, int Income, int LessonReward, IReadOnlyDictionary<string, int>? Goods = null, IReadOnlyDictionary<string, int>? Found = null)
 {
     public int Total => Loot + Bonus + Income + LessonReward;
+
+    /// <summary>Lesson ids of the rune tablets brought home; applying the reward learns them.</summary>
+    public IReadOnlyList<string> Tablets { get; init; } = [];
 }
 
 /// <summary>
@@ -38,9 +41,12 @@ public sealed class Progression(ContentPack content, Profile profile)
 
     public IReadOnlyList<LessonDef> Lessons => Content.Lessons;
 
-    // ----- Learning (features bought at the Library) -----
+    // ----- Learning (rune tablets found in the mines) -----
 
-    /// <summary>A feature is learned when bought with gold. The first one (plain commands) is known from the start.</summary>
+    /// <summary>
+    /// A feature is learned when its rune tablet is brought home from a delve (<see cref="Learn"/>
+    /// buys one outright, for tests and tools). The first one (plain commands) is known from the start.
+    /// </summary>
     public bool IsLearned(LessonDef lesson) => (Lessons.Count > 0 && lesson == Lessons[0]) || Profile.Learned.Contains(lesson.Id);
 
     /// <summary>Features are learned in ladder order, so this is also the language tier.</summary>
@@ -107,7 +113,7 @@ public sealed class Progression(ContentPack content, Profile profile)
         if (LearnedCount < node.Lessons)
         {
             var lesson = Lessons[node.Lessons - 1];
-            return $"Learn {lesson.Title} at the Library first";
+            return $"Find the {lesson.Title} rune in the mines first";
         }
         return null;
     }
@@ -189,15 +195,21 @@ public sealed class Progression(ContentPack content, Profile profile)
     public DelveSetup SiteSetup(DelveSite site, ulong seed)
     {
         var party = Party.Select(id => new PartyMember(Content.Chassis[id].Name, id, DelveProgram(id))).ToList();
-        return new DelveSetup(seed, site.Stratum, party, KnownTier, Loadout: Loadout());
+        return new DelveSetup(seed, site.Stratum, party, KnownTier, Loadout: Loadout(), Tablet: TabletAt(site)?.Id);
     }
+
+    /// <summary>The rune tablet waiting on this site's floors: the next feature, if the site is deep enough for it.</summary>
+    public LessonDef? TabletAt(DelveSite site) => NextToLearn is { } next && next.Tier <= site.Tablets ? next : null;
+
+    /// <summary>The first open site that holds the next tablet, or null when every rune is found.</summary>
+    public DelveSite? TabletSite => OpenSites.FirstOrDefault(s => TabletAt(s) is not null);
 
     /// <summary>A free delve: loot plus the Market bonus and village income, and the mined materials plus village production.</summary>
     public DelveReward SiteReward(Outcome outcome, DelveSite? site = null)
     {
         var found = new Dictionary<string, int>(outcome.Found ?? new Dictionary<string, int>(), StringComparer.Ordinal);
         if (site is not null && outcome.Kind is OutcomeKind.Success or OutcomeKind.Costly) found["cleared:" + site.Id] = 1;
-        return new(outcome.Loot, outcome.Loot * GoldPercent / 100, Income, 0, Resources.Sum(outcome.Goods, Production()), found);
+        return new(outcome.Loot, outcome.Loot * GoldPercent / 100, Income, 0, Resources.Sum(outcome.Goods, Production()), found) { Tablets = outcome.Tablets };
     }
 
     /// <summary>
@@ -213,6 +225,10 @@ public sealed class Progression(ContentPack content, Profile profile)
         Profile.GoldEarned += reward.Total;
         Profile.Add(reward.Goods);
         Profile.Delves++;
+        foreach (var id in reward.Tablets)
+        {
+            if (Lessons.FirstOrDefault(l => l.Id == id) is { } lesson && !IsLearned(lesson)) Profile.Learned.Add(id);
+        }
         Discover(reward.Found);
     }
 

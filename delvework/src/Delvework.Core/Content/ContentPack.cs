@@ -380,6 +380,20 @@ public sealed class ContentPack
         }
         ValidateAlmanac(problems);
         ValidateCommissions(problems);
+        ValidateTablets(problems);
+    }
+
+    /// <summary>Every feature after the first must have a rune tablet on a site that is open before it is known.</summary>
+    private void ValidateTablets(List<string> problems)
+    {
+        for (var i = 1; i < Lessons.Count; i++)
+        {
+            var tier = Lessons[i].Tier;
+            if (!Sites.Any(s => s.Lessons <= i && s.Tablets >= tier))
+            {
+                problems.Add($"No open site holds the rune tablet for '{Lessons[i].Id}' (tier {tier}) after {i} features are known");
+            }
+        }
     }
 
     private void ValidateAlmanac(List<string> problems)

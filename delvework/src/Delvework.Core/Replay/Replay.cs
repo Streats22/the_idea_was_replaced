@@ -32,6 +32,7 @@ public sealed record ReplayFile
     public int Tier { get; init; } = Tiers.Max;
     public int? MaxTicks { get; init; }
     public Loadout? Loadout { get; init; }
+    public string? Tablet { get; init; }
     public List<ReplayGolem> Party { get; init; } = [];
     public int FinalTick { get; init; }
     public string FinalHash { get; init; } = "";
@@ -41,7 +42,7 @@ public sealed record ReplayFile
     public SortedDictionary<int, string> Checkpoints { get; init; } = [];
 
     public DelveSetup ToSetup() =>
-        new(Seed, Stratum, Party.Select(p => new PartyMember(p.Name, p.Chassis, p.Source)).ToList(), Tier, MaxTicks, Loadout);
+        new(Seed, Stratum, Party.Select(p => new PartyMember(p.Name, p.Chassis, p.Source)).ToList(), Tier, MaxTicks, Loadout, Tablet);
 
     public string ToJson() => JsonSerializer.Serialize(this, Json);
 
@@ -106,6 +107,7 @@ public sealed class ReplayRecorder
             Tier = setup.Tier,
             MaxTicks = setup.MaxTicks,
             Loadout = setup.Loadout,
+            Tablet = setup.Tablet,
             Party = setup.Party.Select(p => new ReplayGolem(p.Name, p.Chassis, ReplayFile.SourceHash(p.Source), p.Source)).ToList(),
             FinalTick = world.Tick,
             FinalHash = ReplayFile.Hex(world.StateHash()),

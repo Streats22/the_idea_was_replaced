@@ -29,11 +29,10 @@ public partial class TownScreen : Control
         var equipment = p.Content.Skills.Count(n => n.Tree == SkillTree.Equipment && p.Status(n) == NodeStatus.Available);
         var arcana = p.Content.Skills.Count(n => n.Tree == SkillTree.Arcana && p.Status(n) == NodeStatus.Available);
         static string Afford(int n) => n == 0 ? "" : n == 1 ? "1 thing to buy" : $"{n} things to buy";
-        var lesson = p.NextToLearn;
         var signs = new List<TownSign>
         {
-            new("delve", "The Mines", "Delve for gold and materials", true, next.Target == "delve"),
-            new("codex", "Library: the Codex", lesson is null ? "Everything learned" : $"Learn {lesson.Title}: {lesson.Cost} gold", true, next.Target == "codex"),
+            new("delve", "The Mines", p.NextToLearn is null ? "Delve for gold and materials" : "Runes, gold and materials", true, next.Target == "delve"),
+            new("library", "Library", $"Almanac {p.FoundCount}/{p.AlmanacEntries.Count}", true, next.Target == "library"),
             new("village", "Notice board: Village", Afford(village), true, next.Target == "village"),
             new("equipment", "Forge: Equipment", p.IsTreeOpen(SkillTree.Equipment) ? Afford(equipment) : "In ruins", p.IsTreeOpen(SkillTree.Equipment), next.Target == "equipment"),
             new("arcana", "Arcane Tower: Arcana", p.IsTreeOpen(SkillTree.Arcana) ? Afford(arcana) : "In ruins", p.IsTreeOpen(SkillTree.Arcana), next.Target == "arcana"),
@@ -52,38 +51,38 @@ public partial class TownScreen : Control
         }
         _town.SetSigns(signs);
 
-        var top = new PanelContainer();
-        top.AddThemeStyleboxOverride("panel", Ui.Box(new Color(Palette.Panel, 0.9f), Palette.Border, 0, 12));
-        top.SetAnchorsPreset(LayoutPreset.TopWide);
-        AddChild(top);
-        var menu = Ui.Button("Menu");
+        var menu = Ui.Button("Menu", "Back to the title screen");
         menu.Pressed += () => App.GoTitle();
-        var settings = Ui.Button("Settings");
-        settings.Pressed += App.ShowSettings;
-        var party = Ui.Row(6);
-        foreach (var id in p.Party) party.AddChild(Ui.Label("● " + p.Content.Chassis[id].Name, Palette.ForGolem(id), 13));
-        var almanac = Ui.Button($"Almanac {p.FoundCount}/{p.AlmanacEntries.Count}", "Everything you have found out: monsters, materials, hazards and more");
-        almanac.Pressed += () =>
+        var party = Ui.Row(10);
+        foreach (var id in p.Party) party.AddChild(Ui.Label("◆ " + p.Content.Chassis[id].Name, Palette.ForGolem(id), 13));
+        var runes = Ui.Button($"✦ Grimoire  {p.LearnedCount}/{p.Lessons.Count}", "The runes your golems have found, with examples");
+        runes.Pressed += () =>
         {
-            App.Audio.Play(Sfx.Click);
-            App.GoAlmanac();
+            App.Audio.Play(Sfx.Page);
+            Help.Grimoire(App);
         };
-        top.AddChild(Ui.Row(18,
-            Ui.Heading("Hollowmere", 22, Palette.Accent),
-            Goods.Bar(App.Profile, 15),
-            Ui.Label($"Knows {p.LearnedCount} of {p.Lessons.Count} features", Palette.Text, 14),
-            Ui.Label("Party:", Palette.Muted, 13), party,
-            Ui.Spacer(), almanac, Help.Menu(App), settings, menu));
 
-        var hint = Ui.Column(4, Ui.Label("NEXT STEP", Palette.Accent, 11), Ui.Para(next.Text, Palette.Text, 15));
-        var card = new PanelContainer { CustomMinimumSize = new Vector2(420, 0) };
-        card.AddThemeStyleboxOverride("panel", Ui.Box(new Color(Palette.Panel, 0.92f), Palette.Accent.Darkened(0.4f), 12, 14));
-        card.AddChild(hint);
+        var name = Ui.Frame(Ui.Column(-2, Ui.Title("Hollowmere", 20), Ui.Label("VILLAGE OF THE DELVERS", Palette.Muted, 10)), FrameKind.Plate, opacity: 0.94f);
+        var wallet = Ui.Frame(Goods.Bar(App.Profile, 14), FrameKind.Plate, opacity: 0.94f);
+        var crew = Ui.Frame(Ui.Row(8, Ui.Label("PARTY", Palette.Muted, 11), party), FrameKind.Plate, opacity: 0.94f);
+        var tools = Ui.Frame(Ui.Row(6, runes, Help.Menu(App), App.SettingsButton(), menu), FrameKind.Plate, opacity: 0.94f);
+        foreach (var plate in new[] { name, wallet, crew, tools }) plate.CustomMinimumSize = new Vector2(0, 58);
+        var top = Ui.Row(8, name, wallet, crew, Ui.Spacer(), tools);
+        top.MouseFilter = MouseFilterEnum.Ignore;
+        top.SetAnchorsPreset(LayoutPreset.TopWide);
+        top.OffsetLeft = 12;
+        top.OffsetRight = -12;
+        top.OffsetTop = 10;
+        AddChild(top);
+
+        var hint = Ui.Column(6, Ui.Banner("Next step", 11), Ui.Para(next.Text, Palette.Text, 15));
+        var card = Ui.Frame(hint, opacity: 0.94f);
+        card.CustomMinimumSize = new Vector2(430, 0);
         card.SetAnchorsPreset(LayoutPreset.BottomLeft);
         card.GrowVertical = GrowDirection.Begin;
-        card.Position = new Vector2(20, -20);
+        card.Position = new Vector2(16, -16);
         AddChild(card);
-        card.Resized += () => card.Position = new Vector2(20, Size.Y - card.Size.Y - 20);
+        card.Resized += () => card.Position = new Vector2(16, Size.Y - card.Size.Y - 16);
     }
 
     public TownView3D Town => _town;
@@ -95,15 +94,14 @@ public partial class TownScreen : Control
     private (string Text, string Target) NextStep()
     {
         var p = App.Progress;
-        var lesson = p.NextToLearn;
-        var entrance = p.OpenSites.FirstOrDefault()?.Name ?? "the mines";
-        if (lesson is not null && p.LearnStatus(lesson) == NodeStatus.Available)
+        var runeSite = p.TabletSite;
+        if (p.LearnedCount == 1 && runeSite is not null)
         {
-            return ($"You have enough gold to learn {lesson.Title} ({lesson.Cost} gold). Buy it in the Library: your golems can use it right away.", "codex");
+            return ($"Your golem already knows simple commands like move(East). Enter the cave and delve into {runeSite.Name}: a rune tablet lies on the way to the stairs. Walk past it and carry it home to learn a new part of the language.", "delve");
         }
-        if (p.LearnedCount == 1 && App.Profile.Gold < (lesson?.Cost ?? 0))
+        if (runeSite is not null && App.Profile.Delves % 3 == 0)
         {
-            return ($"Your golem already knows simple commands like move(East). Enter the cave and delve into {entrance}: bring home {lesson?.Cost} gold to learn {lesson?.Title}.", "delve");
+            return ($"Another rune tablet waits in {runeSite.Name}. Bring it home and the whole party learns it. The runes you have found are in the Grimoire above your code.", "delve");
         }
         var affordable = p.Content.Skills.Where(n => p.Status(n) == NodeStatus.Available).OrderBy(n => n.Cost).FirstOrDefault();
         if (affordable is not null)
@@ -125,12 +123,12 @@ public partial class TownScreen : Control
             .Where(n => p.Status(n) == NodeStatus.TooExpensive && n.Tree == SkillTree.Village)
             .OrderBy(n => p.Missing(n).Values.Sum())
             .FirstOrDefault();
-        if (close is not null && (lesson is null || p.LearnStatus(lesson) != NodeStatus.TooExpensive || close.Cost < lesson.Cost))
+        if (runeSite is not null) return ($"A rune tablet waits in {runeSite.Name}. Bring it home to learn the next part of the language.", "delve");
+        if (close is not null)
         {
             var missing = p.Missing(close);
             return ($"Next build: {close.Name}. You still need {Resources.Format(missing)}. {SkillScreen.Where(missing)}", "delve");
         }
-        if (lesson is not null) return ($"Delve for gold: {lesson.Title} costs {lesson.Cost} and you have {App.Profile.Gold}. Better code brings more home.", "delve");
         return ("Delve into the mines for gold and materials for the rest of your upgrades. Improve your code to bring more home.", "delve");
     }
 
@@ -139,8 +137,8 @@ public partial class TownScreen : Control
         App.Audio.Play(Sfx.Click);
         switch (id)
         {
-            case "codex":
-                App.GoCodex();
+            case "library":
+                App.GoAlmanac();
                 break;
             case "village":
                 App.GoSkills(SkillTree.Village);
@@ -179,19 +177,18 @@ public partial class TownScreen : Control
                 App.Audio.Play(Sfx.Click);
                 App.GoSite(s);
             };
-            var lockText = open ? "" : $"Learn {p.Lessons[Math.Clamp(site.Lessons, 1, p.Lessons.Count) - 1].Title} in the Library to open.";
-            var info = Ui.Column(2,
-                Ui.Label(site.Name, open ? Palette.Text : Palette.Muted, 16),
-                Ui.Para(site.Description + (lockText.Length > 0 ? " " + lockText : ""), Palette.Muted, 13));
+            var lockText = open ? "" : $"Opens when your golems know {site.Lessons} runes.";
+            var name = Ui.Heading(site.Name, 17, open ? Palette.BrassLight : Palette.Muted);
+            var info = Ui.Column(2, name, Ui.Para(site.Description + (lockText.Length > 0 ? " " + lockText : ""), Palette.Muted, 13));
+            if (open && p.TabletAt(site) is not null) info.AddChild(Ui.Label("✦ A rune tablet lies here", Palette.Rune, 13));
             info.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            var card = Ui.Card(Ui.Row(12, info, go));
-            card.AddThemeStyleboxOverride("panel", Ui.Box(Palette.Panel2, Palette.Border, 10, 12));
+            var card = Ui.Frame(Ui.Row(12, info, go), FrameKind.Plate);
             list.AddChild(card);
         }
         var party = string.Join(", ", p.Party.Select(id => p.Content.Chassis[id].Name));
         var close = Ui.Button("Close");
         modal = App.ShowModal(Ui.Column(14,
-            Ui.Heading("Into the mines", 24),
+            Ui.Banner("Into the mines", 16),
             Ui.Para($"Your party ({party}) runs the code you last wrote for free delves. Each delve explores a new part of the mines. Everything the golems carry home is yours.", Palette.Muted, 14),
             list,
             Ui.Row(8, Ui.Spacer(), close)), 620);
