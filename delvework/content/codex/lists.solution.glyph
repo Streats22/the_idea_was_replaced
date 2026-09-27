@@ -1,0 +1,15 @@
+def adjacent_enemy():
+    for enemy in enemies():
+        if distance(enemy) == 1:
+            return enemy
+    return None
+
+while True:
+    target = adjacent_enemy()
+    chest = nearest_chest()
+    if target:
+        attack(target)
+    elif chest:
+        move_toward(chest)
+    elif not explore():
+        move_toward(stairs())

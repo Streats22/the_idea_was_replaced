@@ -1,0 +1,23 @@
+# Skeletons chase on sight. They out-damage the Seeker but not the Warden,
+# so the Warden leads, fights, and grabs the chests before leaving.
+# A chasing Skeleton walks into you: hold still and swing first.
+on see(enemy):
+    if enemy.kind == "Skeleton":
+        signal("skeleton", enemy)
+
+on low_hp():
+    recall()
+
+while True:
+    enemy = nearest_enemy()
+    chest = nearest_chest()
+    if enemy and distance(enemy) == 1:
+        attack(enemy)
+    elif enemy and enemy.intent == Intent.Chase and distance(enemy) <= 3:
+        wait()
+    elif chest and move_toward(chest):
+        pass
+    elif stairs() and move_toward(stairs()):
+        pass
+    else:
+        explore()

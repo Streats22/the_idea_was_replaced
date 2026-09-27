@@ -1,0 +1,68 @@
+[
+  {
+    "id": "first_pour",
+    "title": "First Pour",
+    "client": "Brann the blacksmith",
+    "brief": "\"Six iron bars, quick as you can. You get six ore and four wood, and I'm counting.\"",
+    "workshop": "smelter",
+    "stock": { "ore": 6, "wood": 4 },
+    "goal": { "resource": "iron", "amount": 6 },
+    "par": { "ticks": [8, 12], "lines": [4, 7] },
+    "reward": { "gold": 15, "iron": 2 }
+  },
+  {
+    "id": "lean_fire",
+    "title": "Lean Fire",
+    "client": "The charcoal burners",
+    "brief": "\"Wood's scarce this winter. Eleven bars from eleven ore, and only three logs to burn. Don't let any heat go up the chimney.\"",
+    "workshop": "smelter",
+    "stock": { "ore": 11, "wood": 3 },
+    "goal": { "resource": "iron", "amount": 11 },
+    "par": { "ticks": [14, 20], "lines": [4, 7] },
+    "reward": { "gold": 25, "crystal": 2 }
+  },
+  {
+    "id": "morning_rush",
+    "title": "Morning Rush",
+    "client": "Widow Hale's inn",
+    "brief": "\"Four loaves before the coach arrives! There's wheat for four and one log for the oven.\"",
+    "workshop": "bakery",
+    "stock": { "wheat": 8, "wood": 1 },
+    "goal": { "resource": "bread", "amount": 4 },
+    "par": { "ticks": [10, 14], "lines": [6, 9] },
+    "reward": { "gold": 15, "bread": 3 }
+  },
+  {
+    "id": "double_batch",
+    "title": "Double Batch",
+    "client": "The miners' guild",
+    "brief": "\"Eight loaves for the night shift, and we've only one log for the oven. One fire has to bake both trays.\"",
+    "workshop": "bakery",
+    "stock": { "wheat": 16, "wood": 1 },
+    "goal": { "resource": "bread", "amount": 8 },
+    "par": { "ticks": [19, 26], "lines": [7, 11] },
+    "reward": { "gold": 30, "essence": 3 }
+  },
+  {
+    "id": "wheat_harvest",
+    "title": "Harvest Festival",
+    "client": "The mayor",
+    "brief": "\"Twenty-four sheaves of wheat for the festival. The whole valley is watching.\"",
+    "workshop": "farm",
+    "stock": {},
+    "goal": { "resource": "wheat", "amount": 24 },
+    "par": { "ticks": [125, 170], "lines": [8, 12] },
+    "reward": { "gold": 20, "wood": 10 }
+  },
+  {
+    "id": "pumpkin_patch",
+    "title": "The Giant Pumpkin Fair",
+    "client": "Old Tomas",
+    "brief": "\"Eighteen pumpkins by the fair! Big patches, lad: pumpkins that touch come in together.\"",
+    "workshop": "farm",
+    "stock": {},
+    "goal": { "resource": "pumpkin", "amount": 18 },
+    "par": { "ticks": [48, 80], "lines": [13, 18] },
+    "reward": { "gold": 30, "pumpkin": 5 }
+  }
+]

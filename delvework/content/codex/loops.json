@@ -1,0 +1,46 @@
+{
+  "id": "loops",
+  "tier": 2,
+  "title": "Loops",
+  "summary": "Repeat code without writing it again.",
+  "reward": 20,
+  "cost": 10,
+  "pages": [
+    {
+      "title": "Doing things again",
+      "blocks": [
+        { "text": "Typing move(East) twenty times is slow and easy to get wrong. A loop repeats code for you." },
+        { "code": ["while True:", "    move(East)"] },
+        { "text": "'while True:' means 'repeat the code below forever'. The code that belongs to the loop is indented: it starts 4 spaces further right. That indented part is called the body of the loop." },
+        { "tip": "Indentation is how Glyph (and Python) knows which lines are inside the loop. Press Tab to indent. Lines that go back to the left come after the loop." }
+      ]
+    },
+    {
+      "title": "How a loop runs",
+      "blocks": [
+        { "text": "Step by step: the golem reaches 'while', checks the condition after it, and if it is True it runs the body. Then it jumps back up and checks again. True is always true, so this loop never stops on its own." },
+        { "code": ["while True:", "    explore()    # walk toward the nearest unexplored place"] },
+        { "text": "A golem inside a forever-loop keeps going until it reaches the stairs, breaks, or the delve runs out of time. That is fine: most golem programs are one big loop." },
+        { "tip": "explore() is a very useful command: every call takes one step toward the closest part of the map nobody has seen yet." }
+      ]
+    },
+    {
+      "title": "Loops that stop",
+      "blocks": [
+        { "text": "Many functions give an answer back. move(East) answers True if the golem moved and False if a wall was in the way. A while loop keeps going as long as its condition is True, so this walks East until it hits a wall:" },
+        { "code": ["while move(East):", "    pass", "move(South)      # runs after the loop ends"] },
+        { "text": "'pass' means 'do nothing'. A loop needs at least one line in its body, and here all the work happens in the condition, so pass fills the gap." },
+        { "text": "You can also leave a loop from inside with 'break', or skip to the next round with 'continue'." },
+        { "tip": "An answer a function gives back is called its return value. You'll use return values everywhere from now on." }
+      ]
+    }
+  ],
+  "challenge": {
+    "floor": "lesson_loops",
+    "brief": "The Long Hall runs far East and then turns South to the stairs. Your core only fits 5 lines, so you need loops.",
+    "goal": "Stairs",
+    "maxLines": 5,
+    "mustUse": ["while"],
+    "party": ["warden"]
+  }
+}

@@ -1,0 +1,7 @@
+# Slimes ooze around at random and smack anything that touches them.
+while True:
+    if adjacent_golem():
+        attack()
+    else:
+        intend(Intent.Move)
+        wander()

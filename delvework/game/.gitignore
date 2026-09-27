@@ -1,0 +1,5 @@
+.godot/
+/android/
+*.translation
+export_presets.cfg
+screenshots/

@@ -1,0 +1,13 @@
+# Finish the fight function: attack the enemy when it is
+# next to you, otherwise walk toward it.
+def fight(enemy):
+    pass
+
+while True:
+    enemy = nearest_enemy()
+    if enemy:
+        fight(enemy)
+    elif stairs():
+        move_toward(stairs())
+    else:
+        explore()

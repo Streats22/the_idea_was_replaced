@@ -72,7 +72,7 @@ Delvework/
 
 ```mermaid
 flowchart LR
-  P0[P0 Concept validation<br/>TS prototype] --> P1[P1 Core foundation<br/>C# language + simulation]
+  P0[P0 Concept validation<br/>playtest build] --> P1[P1 Core foundation<br/>C# language + simulation]
   P1 --> P2[P2 First playable<br/>Godot, 1 golem, 1 floor]
   P2 --> P3[P3 Party and monsters<br/>signals, Bestiary, chips]
   P2 --> P4[P4 Town<br/>buildings, economy]
@@ -90,10 +90,14 @@ on one side, town and economy (TOWN) on the other.
 
 ---
 
-## Phase 0: Concept validation (TypeScript prototype)
+## Phase 0: Concept validation
 
-**Goal:** prove that writing a party AI, then watching and debugging it, is fun, using the
-fastest tool available: the existing web prototype. None of this code ships.
+**Goal:** prove that writing a party AI, then watching and debugging it, is fun.
+
+> **Changed (Sep 2026):** Phase 0 started as a throwaway TypeScript browser prototype. Once
+> the C# core (Phase 1) existed, the prototype was retired so there is one implementation of
+> the rules. The playtests now run on the Godot build in `game/` with the same floor, monsters
+> and example parties. The protocol is in [PLAYTEST.md](PLAYTEST.md).
 
 **Deliverables:**
 - `SIM`: turn the farm grid into a dungeon grid with walls, a small hand-made room layout,
@@ -157,17 +161,48 @@ turn-by-turn stepping where every tick is a puzzle, which would be a Zachtronics
 - `Delvework.Cli run --seed 42 --party warden.glyph,seeker.glyph` prints the outcome.
 
 **Exit criteria:**
-- [ ] All TypeScript prototype language tests are ported and passing, plus 150 or more new tests.
-- [ ] The determinism test passes across platforms.
-- [ ] The fuzz test runs for 1 hour with zero crashes.
-- [ ] The performance benchmark target is met.
-- [ ] A command-line demo can play a full generated floor headlessly.
+- [x] All TypeScript prototype language tests are ported and passing, plus 150 or more new tests. (All 16 ported, plus 328 new.)
+- [ ] The determinism test passes across platforms. (1,000 seeds × 2 pass on Windows; CI compares the Windows and Linux hashes on first push.)
+- [x] The fuzz test runs for 1 hour with zero crashes. (66M programs, 0 crashes.)
+- [x] The performance benchmark target is met. (About 3,800 ticks/s in Release.)
+- [x] A command-line demo can play a full generated floor headlessly.
 
 ---
 
 ## Phase 2: First playable (Godot)
 
 **Goal:** the smallest version you'd hand to a friend: one golem, one floor type, a stub town, and the full edit, delve and replay loop.
+
+**Progress (Sep 2026):** `game/` is a playable loop:
+- A 2.5D look: a real 3D scene with a fixed isometric camera, rendered at half resolution with
+  nearest filtering. It has lit dungeons with fog, torches, golem lanterns, spell effects and
+  damage numbers, plus the town of Hollowmere, which is rebuilt as Village skills are bought.
+- **Play first, learn by buying.** A new game starts in town with a golem that already runs
+  plain commands at the Mine Entrance. Delve gold buys the other 7 language features at the
+  Library, in order: Loops (10), Decisions (25), Variables (40), Functions (60), Lists (90),
+  Events (120), Dictionaries (160). Learning one pops up its explanation. Each feature's
+  challenge floor is an optional side quest that pays a one-time gold bonus.
+- **Help windows:** small draggable, resizable windows float over any screen. They cover every
+  feature, every function (with an example from the Codex) and a how-to-play card, and open
+  from the "? Help" menu, the Library reference, or the Functions tab. In the editor, the strip
+  under the code explains the name at the cursor, hovering shows a tooltip, and Ctrl+click opens
+  the window.
+- Three skill trees bought with gold: **Village** (income, party size, opens the other trees),
+  **Equipment** (Forge) and **Arcana** (Tower). Arcana spells are new functions.
+- Materials next to gold: stone, iron ore and timber veins sit in mine walls (`mine()`,
+  `nearest_vein()`, `carrying()`), and village buildings deliver wood, stone and wheat after
+  every delve. Buildings and upgrades cost gold plus wood, stone, iron or bread.
+- Programmable workshops: the Smelter (ore and wood into iron, keep the heat up without wasting
+  wood) and the Bakery (knead, bake and take out on time: raw before 4 ticks, burnt after 7). The
+  player's script runs one shift after every delve, and the workshop screen animates it with a
+  preview on the current stores. `delvework workshop <id>` runs a shift from the CLI.
+- Free delves into three sites, and original procedural music with SFX.
+- A title screen, settings (volume) and a JSON save.
+
+Still to do: resolution and font-size settings, editor keybindings, nightly exports and the
+crash reporter. The new structure's playtests are also still to run: can a non-programmer get
+from the first delve to Variables without help, are the feature prices well paced, and do
+players find the workshops on their own and try to improve the starter scripts?
 
 **Deliverables:**
 - `ART` (placeholder quality is fine): dungeon tileset (stratum 1), one golem, three monsters, chest, trap, and a town ground plus 2 buildings.
@@ -464,17 +499,23 @@ This is priority #1 for feel. Players spend half their time here.
 
 ## 5. Glyph feature ladder
 
-| Tier | Features | Unlocked by |
-|---|---|---|
-| 1 | `move`, `attack`, `explore`, `if/else`, `while`, comparisons, `True/False` | Start |
-| 2 | Variables, arithmetic, `print` | Library L1 |
-| 3 | `def`, `return`, parameters | Library L2 |
-| 4 | Lists, `for ... in`, `len`, `range` | Library L3 |
-| 5 | Events: `on see`, `on hurt`, `on signal`, `on low_hp` | Library L3 |
-| 6 | Dicts, `in`, string methods | Library L4 |
-| 7 | `import` modules from the Archive | Archive |
-| 8 | `wait(ticks)`, `wait_until(cond)` | Library L5 |
-| Engineer mode | Everything, from the start | Settings (new save) |
+Changed (Sep 2026): each step is now one Codex lesson (explanation pages plus a challenge), and
+the ladder is finer, so a new player starts with nothing but single commands. The skill trees
+(Village, Equipment, Arcana) replace the Library levels as the gold sink.
+
+| Tier | Codex lesson | Features | Unlocked by |
+|---|---|---|---|
+| 1 | Commands | Calling functions: `move(East)`, `attack(...)`, `explore()` | Start |
+| 2 | Loops | `while`, `break`, `continue` | Codex 1 |
+| 3 | Decisions | `if/elif/else`, comparisons, `and/or/not` | Codex 2 |
+| 4 | Variables | Variables, arithmetic, fields, `print` | Codex 3 |
+| 5 | Functions | `def`, `return`, parameters, `global` | Codex 4 |
+| 6 | Lists | Lists, `for ... in`, indexing, `len`, `range` | Codex 5 |
+| 7 | Events | `on see`, `on hurt`, `on signal`, `on low_hp` | Codex 6 |
+| 8 | Dictionaries | Dicts, `in`, string methods | Codex 7 |
+| 9 | Modules | `import` | Planned lesson |
+| 10 | Waiting | `wait(ticks)`, `wait_until(cond)` | Planned lesson |
+| Spells | Arcana tree | `heal()`, `bolt(enemy)`, `reveal()`, `shield()`, `mana()` | Arcane Tower nodes |
 
 ---
 
@@ -514,13 +555,12 @@ These are the minimum roles; one person can hold several.
 
 ## 8. Immediate next actions
 
-These are the first tasks of Phase 0, in order:
+Phase 0's build and Phase 1 are done. In order:
 
-1. Fork the Drone Farm prototype into `prototype-delve/`.
-2. Replace the farm grid with a dungeon grid: walls, a hand-made 20×14 map, and fog of war.
-3. Add entities: golem (HP, attack), Slime (random walk), Skeleton (chases on sight), chest, and spike trap.
-4. Add interpreter support for `on see(enemy):` handlers, `attack()`, `sense_ahead()`, and `recall()`.
-5. Implement tick-based combat and death leading to salvage.
-6. Record state per tick; add a replay slider plus current-line highlighting per golem.
-7. Add a second golem and `signal()` / `on signal`.
-8. Run the Phase 0 playtest protocol and record the results against the exit criteria.
+1. Run the Phase 0 playtest protocol ([PLAYTEST.md](PLAYTEST.md)) on the Godot build and record the results against the exit criteria.
+2. Push, and confirm the CI determinism hashes match between Windows and Linux (the last open Phase 1 criterion).
+3. Playtest the new Codex path with two or three non-programmers. Watch where they get stuck in
+   Codex 1–4, and tune the page texts, challenge floors and the "Stuck?" solution button.
+4. Balance the economy against real play: lesson rewards, delve loot and node costs, so that
+   every 1–2 delves buy something.
+5. Write Codex 9 (Modules) and 10 (Waiting), and more Arcana spells.

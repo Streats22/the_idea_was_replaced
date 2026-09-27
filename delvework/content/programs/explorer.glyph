@@ -1,0 +1,6 @@
+# The simplest golem: wander until you find the stairs.
+while True:
+    if stairs():
+        move_toward(stairs())
+    else:
+        explore()

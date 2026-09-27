@@ -1,0 +1,8 @@
+# Mimics look like chests and never move. They only wake up when a golem stands right
+# next to them, and then they bite hard until it leaves.
+while True:
+    target = adjacent_golem()
+    if target:
+        attack(target)
+    else:
+        idle(1)

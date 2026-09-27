@@ -1,0 +1,21 @@
+# Alone, the Seeker loses most duels. It sticks close to the Warden
+# and joins the fight from behind.
+on signal "danger"(enemy):
+    print(enemy.kind, "at", enemy.x, enemy.y, "- staying close")
+
+on low_hp():
+    recall()
+
+while True:
+    enemy = nearest_enemy()
+    warden = ally()
+    if enemy and distance(enemy) == 1:
+        attack(enemy)
+    elif warden and distance(warden) > 1:
+        move_toward(warden)
+    elif not warden and stairs():
+        move_toward(stairs())
+    elif not warden:
+        explore()
+    else:
+        wait()

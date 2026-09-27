@@ -1,0 +1,14 @@
+def fight(enemy):
+    if distance(enemy) == 1:
+        attack(enemy)
+    else:
+        move_toward(enemy)
+
+while True:
+    enemy = nearest_enemy()
+    if enemy:
+        fight(enemy)
+    elif stairs():
+        move_toward(stairs())
+    else:
+        explore()

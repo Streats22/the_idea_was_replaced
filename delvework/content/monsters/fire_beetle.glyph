@@ -1,0 +1,20 @@
+# Fire Beetles guard their spot and only give short chase.
+home = [me().x, me().y]
+
+def far_from_home():
+    return distance(home) > 4
+
+while True:
+    target = adjacent_golem()
+    if target:
+        attack(target)
+        continue
+    seen = nearest_golem()
+    if seen and not far_from_home():
+        intend(Intent.Chase)
+        step_toward(seen)
+    elif distance(home) > 0:
+        intend(Intent.Move)
+        step_toward(home)
+    else:
+        idle(3)

@@ -1,0 +1,14 @@
+# Fill two rows with pumpkins, replant the rotten ones, then bring the patch in.
+while pumpkins() < 18:
+    for i in range(width()):
+        if rotten():
+            harvest()
+        if not growing():
+            plant(Pumpkin)
+        move(East)
+    if y() == 0:
+        move(South)
+    else:
+        move(North)
+    if can_harvest() and y() == 0:
+        harvest()

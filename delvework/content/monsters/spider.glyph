@@ -1,0 +1,16 @@
+# Cave spiders bite and back off: after every bite they skitter away for a moment,
+# then come back for more. A golem that chases them runs into their next bite.
+while True:
+    target = adjacent_golem()
+    if target:
+        attack(target)
+        intend(Intent.Flee)
+        step_away(target)
+        step_away(target)
+        continue
+    seen = nearest_golem()
+    if seen:
+        intend(Intent.Chase)
+        step_toward(seen)
+    else:
+        idle(3)

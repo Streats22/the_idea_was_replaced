@@ -1,0 +1,4 @@
+while ore() > 0:
+    if heat() < 5:
+        stoke()
+    smelt()

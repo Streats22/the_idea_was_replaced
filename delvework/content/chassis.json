@@ -1,0 +1,45 @@
+[
+  {
+    "id": "warden",
+    "name": "Warden",
+    "hp": 26,
+    "armor": 1,
+    "attack": 4,
+    "damage": "Physical",
+    "sight": 5,
+    "budget": 40,
+    "initiative": 5,
+    "moveTicks": 2,
+    "attackTicks": 4,
+    "recallStones": 1
+  },
+  {
+    "id": "seeker",
+    "name": "Seeker",
+    "hp": 16,
+    "armor": 0,
+    "attack": 2,
+    "damage": "Physical",
+    "sight": 7,
+    "budget": 40,
+    "initiative": 7,
+    "moveTicks": 2,
+    "attackTicks": 4,
+    "recallStones": 1
+  },
+  {
+    "id": "striker",
+    "name": "Striker",
+    "hp": 18,
+    "armor": 0,
+    "attack": 5,
+    "damage": "Physical",
+    "sight": 5,
+    "budget": 40,
+    "initiative": 6,
+    "moveTicks": 2,
+    "attackTicks": 5,
+    "recallStones": 1,
+    "resist": { "Fire": 150 }
+  }
+]

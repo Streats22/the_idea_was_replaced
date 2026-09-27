@@ -1,0 +1,28 @@
+{
+  "id": "bakery",
+  "name": "Bakery",
+  "building": "v_bakery",
+  "summary": "Knead wheat into dough and bake bread. Take it out too early and it's raw, too late and it burns.",
+  "order": 3,
+  "shiftTicks": 120,
+  "pages": [
+    {
+      "title": "Baking bread",
+      "blocks": [
+        { "text": "The Wheat Fields grow wheat; the baker turns it into bread, which the Market, the Cottages and the Guild Hall need. You write the baker's script, and it runs one shift after every delve." },
+        { "text": "knead() turns 2 wheat into 1 dough. light() burns 1 wood and keeps the oven fire going 12 ticks longer. bake() puts up to 4 dough in the oven. take_out() takes the loaves out again." },
+        { "code": ["light()", "knead()", "knead()", "bake()", "wait(5)", "take_out()"] },
+        { "tip": "Bread only bakes while the fire burns. It's done after 4 to 7 ticks in the oven: take it out earlier and it goes back to the dough pile, later and it burns." }
+      ]
+    },
+    {
+      "title": "A busy baker",
+      "blocks": [
+        { "text": "baked() tells you how many ticks the loaves have been baking (or -1 if the oven is empty), and fire() how long the fire keeps burning. With loops you can bake batch after batch:" },
+        { "code": ["while wheat() >= 2 or dough() > 0:", "    while knead() and dough() < 4:", "        pass", "    if fire() < 6:", "        light()", "    bake()", "    wait(5)", "    take_out()"] },
+        { "text": "wheat(), dough(), bread(), fire(), tray() and baked() tell you what's in the bakery right now." },
+        { "tip": "A shift lasts 12 seconds (120 ticks). Dough that's left over is lost at the end of the shift, but unused wheat stays in your stores." }
+      ]
+    }
+  ]
+}

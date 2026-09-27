@@ -1,0 +1,13 @@
+# Bats flit erratically: one move in three is random even while hunting.
+while True:
+    target = adjacent_golem()
+    if target and rand(2) == 0:
+        attack(target)
+        continue
+    seen = nearest_golem()
+    if seen and rand(3) > 0:
+        intend(Intent.Chase)
+        step_toward(seen)
+    else:
+        intend(Intent.Move)
+        wander()

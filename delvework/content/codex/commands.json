@@ -1,0 +1,45 @@
+{
+  "id": "commands",
+  "tier": 1,
+  "title": "Commands",
+  "summary": "Tell a golem what to do, one line at a time.",
+  "reward": 15,
+  "pages": [
+    {
+      "title": "Your first golem",
+      "blocks": [
+        { "text": "Golems are not clever. They do exactly what their code says, one line after another, from the top of the program to the bottom. Your job is to write that code." },
+        { "text": "Here is a whole program. It walks the golem two tiles East and one tile South:" },
+        { "code": ["move(East)", "move(East)", "move(South)"] },
+        { "text": "Each line is a command. In programming, a command like this is called a function call: 'move' is the name of a function (a job the golem knows how to do), and the brackets hold what the job needs to know, here the direction." },
+        { "tip": "Code runs from top to bottom, one line at a time. When the last line is done, the program ends and the golem stands still." }
+      ]
+    },
+    {
+      "title": "How a function call is built",
+      "blocks": [
+        { "text": "Every call has the same shape: the name, an opening bracket, the arguments, and a closing bracket." },
+        { "code": ["move(North)     # name: move, argument: North", "explore()       # no argument, but the brackets are still needed"] },
+        { "text": "An argument is a piece of information you hand to the function. move needs a direction: North (up the map), East (right), South (down) or West (left)." },
+        { "text": "Spelling and capital letters matter. 'East' is a direction; 'east' means nothing to a golem. Brackets must always come in pairs." },
+        { "tip": "Everything after a # is a comment. The golem ignores it. Comments are notes for people, including future you." }
+      ]
+    },
+    {
+      "title": "Errors are friends",
+      "blocks": [
+        { "text": "If you write something the golem can't understand, the editor marks the line in red and explains the problem before the delve even starts. Nothing breaks: fix the line and try again." },
+        { "code": ["mvoe(East)      # Unknown name 'mvoe'. Did you mean 'move'?"] },
+        { "text": "Real programmers see error messages all day. Reading them carefully is one of the most useful skills you will learn here." },
+        { "tip": "Press Delve (or Ctrl+Enter) to run your code. Then watch the replay: the line the golem is running lights up in the editor." }
+      ]
+    }
+  ],
+  "challenge": {
+    "floor": "lesson_commands",
+    "brief": "Walk the Warden from S to the stairs using move() commands. The way: 2 steps East, 2 steps South, 3 steps East.",
+    "goal": "Stairs",
+    "mustUse": ["call"],
+    "party": ["warden"]
+  }
+}

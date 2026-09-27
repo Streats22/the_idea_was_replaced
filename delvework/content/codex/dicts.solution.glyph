@@ -1,0 +1,10 @@
+fight = {"Slime": True, "Skeleton": True, "Cave Troll": False}
+
+while True:
+    enemy = nearest_enemy()
+    if enemy and distance(enemy) == 1 and fight.get(enemy.kind, False):
+        attack(enemy)
+    elif stairs():
+        move_toward(stairs())
+    else:
+        explore()

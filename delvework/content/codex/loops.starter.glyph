@@ -1,0 +1,7 @@
+# The hall is far too long to type every step, and this
+# core only fits 5 lines of code. Use loops!
+#
+# Hint: move(East) gives back False when a wall blocks it,
+# so "while move(East):" keeps walking until the hall turns.
+while True:
+    move(East)

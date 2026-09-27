@@ -1,0 +1,22 @@
+# Cave Trolls sleep until hurt or until a golem wanders close.
+# Their blows wind up for three ticks: watch enemy.intent and step away.
+awake = False
+
+on hurt(amount, source):
+    awake = True
+
+while True:
+    seen = nearest_golem()
+    if seen and distance(seen) <= 3:
+        awake = True
+    if not awake:
+        idle(5)
+        continue
+    target = adjacent_golem()
+    if target:
+        attack(target)
+    elif seen:
+        intend(Intent.Chase)
+        step_toward(seen)
+    else:
+        idle(4)

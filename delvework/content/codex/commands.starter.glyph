@@ -1,0 +1,4 @@
+# The Warden stands on S. The stairs are the > tile.
+# Each line is one command, and they run from top to bottom.
+# The way down: 2 steps East, 2 steps South, then 3 steps East.
+move(East)

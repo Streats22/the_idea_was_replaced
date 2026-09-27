@@ -1,0 +1,13 @@
+# Wisps are harmless and shy: they drift about and flee from any golem they see.
+# Corner one against a wall and it's full of essence.
+while True:
+    target = adjacent_golem()
+    seen = nearest_golem()
+    if target and not step_away(target):
+        attack(target)
+    elif seen and distance(seen) < 4:
+        intend(Intent.Flee)
+        step_away(seen)
+    else:
+        intend(Intent.Move)
+        wander()

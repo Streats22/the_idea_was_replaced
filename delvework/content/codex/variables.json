@@ -1,0 +1,46 @@
+{
+  "id": "variables",
+  "tier": 4,
+  "title": "Variables",
+  "summary": "Give values a name so you can keep and reuse them.",
+  "reward": 30,
+  "cost": 40,
+  "pages": [
+    {
+      "title": "What is a variable?",
+      "blocks": [
+        { "text": "A variable is a name for a value, like a labelled box you can put something in and look at later. You create one with a single =:" },
+        { "code": ["enemy = nearest_enemy()"] },
+        { "text": "The right side is worked out first (find the nearest enemy), then the result is stored under the name on the left. From now on, 'enemy' means that value, so you don't have to ask twice:" },
+        { "code": ["enemy = nearest_enemy()", "if enemy and distance(enemy) == 1:", "    attack(enemy)"] },
+        { "tip": "Names can use letters, digits and _, but no spaces, and can't start with a digit: chest, low_hp_limit, target2." }
+      ]
+    },
+    {
+      "title": "Kinds of values",
+      "blocks": [
+        { "text": "Values come in types. The ones you'll meet most:" },
+        { "code": ["count = 3              # a whole number (int)", "speed = 2.5            # a number with a fraction (float)", "name = \"Warden\"        # text, in quotes (string)", "ready = True           # True or False (bool)", "target = None          # nothing at all"] },
+        { "text": "Some values have fields you read with a dot. An enemy has .kind, .hp, .x and .y; a chest has .gold:" },
+        { "code": ["enemy = nearest_enemy()", "if enemy:", "    print(enemy.kind, \"has\", enemy.hp, \"HP\")"] },
+        { "tip": "print() writes to the delve log. It is the quickest way to see what your golem is thinking." }
+      ]
+    },
+    {
+      "title": "Changing a variable",
+      "blocks": [
+        { "text": "Storing a new value replaces the old one. Programs use this to count, keep score or remember things between rounds of a loop:" },
+        { "code": ["steps = 0", "while move(East):", "    steps = steps + 1     # take the old value, add 1, store it back", "print(\"walked\", steps, \"tiles\")"] },
+        { "text": "steps += 1 is a shorter way to write steps = steps + 1. Maths works as you'd expect: + - * / plus // (divide and round down) and % (remainder)." },
+        { "tip": "Open the Inspector while a replay plays: it shows every variable and its value at that moment. Scrub the timeline to watch them change." }
+      ]
+    }
+  ],
+  "challenge": {
+    "floor": "lesson_variables",
+    "brief": "The vault holds 3 chests and a skeleton guard. Store what you see in variables, open every chest, and only then take the stairs.",
+    "goal": "Chests",
+    "mustUse": ["assign"],
+    "party": ["warden"]
+  }
+}

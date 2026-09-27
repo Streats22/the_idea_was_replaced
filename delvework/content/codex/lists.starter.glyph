@@ -1,0 +1,15 @@
+# enemies() gives a list of every enemy you can see.
+# Finish adjacent_enemy(): loop over the list with "for" and
+# return the first enemy at distance 1 (or None if there is none).
+def adjacent_enemy():
+    return None
+
+while True:
+    target = adjacent_enemy()
+    chest = nearest_chest()
+    if target:
+        attack(target)
+    elif chest:
+        move_toward(chest)
+    elif not explore():
+        move_toward(stairs())

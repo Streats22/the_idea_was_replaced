@@ -1,0 +1,53 @@
+{
+  "id": "decisions",
+  "tier": 3,
+  "title": "Decisions",
+  "summary": "Use if, elif and else to react to what the golem sees.",
+  "reward": 25,
+  "cost": 25,
+  "pages": [
+    {
+      "title": "if: only sometimes",
+      "blocks": [
+        { "text": "So far golems did the same thing no matter what. With 'if', code runs only when a condition is true:" },
+        { "code": ["if nearest_enemy():", "    attack()"] },
+        { "text": "nearest_enemy() gives back the closest enemy the golem can see, or None when there is none. None counts as false, and a real enemy counts as true. So this attacks only when there is someone to attack." },
+        { "tip": "Like loops, the code under an if is indented. It runs when the condition is true, and is skipped otherwise." }
+      ]
+    },
+    {
+      "title": "else and elif",
+      "blocks": [
+        { "text": "'else' says what to do when the condition was false. 'elif' (short for 'else if') adds more choices. The golem checks them from top to bottom and runs only the first one that is true." },
+        { "code": ["while True:", "    if nearest_enemy():", "        attack()", "    elif stairs():", "        move_toward(stairs())", "    else:", "        explore()"] },
+        { "text": "Read it out loud: 'Forever: if there is an enemy, attack; otherwise, if you know where the stairs are, walk to them; otherwise, explore.' That is a real strategy in seven lines." }
+      ]
+    },
+    {
+      "title": "Comparing things",
+      "blocks": [
+        { "text": "Conditions often compare two values. The answer is always True or False." },
+        { "code": ["hp() < 10                         # less than", "distance(nearest_enemy()) == 1    # equal: the enemy is next to you", "loot() >= 20                      # greater than or equal", "hp() != max_hp()                  # not equal"] },
+        { "text": "Combine conditions with 'and' (both must be true), 'or' (either is enough) and 'not' (flips True and False):" },
+        { "code": ["if nearest_enemy() and distance(nearest_enemy()) == 1:", "    attack()"] },
+        { "tip": "One = and two == are different. Two == compares. One = stores a value, which is the next lesson." }
+      ]
+    },
+    {
+      "title": "Digging for materials",
+      "blocks": [
+        { "text": "The village needs more than gold. Veins of stone, iron ore and old timber glint in the mine walls. nearest_vein() gives back the closest one the golem has seen (or None), and mine() digs one unit out of a vein next to you." },
+        { "code": ["while True:", "    if nearest_enemy() and distance(nearest_enemy()) == 1:", "        attack()", "    elif nearest_vein() and distance(nearest_vein()) == 1:", "        mine(nearest_vein())", "    elif nearest_vein():", "        move_toward(nearest_vein())", "    elif stairs():", "        move_toward(stairs())", "    else:", "        explore()"] },
+        { "text": "nearest_vein(Ore) looks only for iron ore, nearest_vein(Stone) for stone and nearest_vein(Wood) for timber. carrying(Ore) tells you how much ore you have: it only counts once the golem gets home." },
+        { "tip": "Veins run out after a few digs, and then nearest_vein() moves on to the next one. A golem that breaks loses everything it carried, so don't dig next to an angry troll." }
+      ]
+    }
+  ],
+  "challenge": {
+    "floor": "lesson_decisions",
+    "brief": "Slimes ooze around the cellar and the stairs are out of sight. Attack enemies next to you, walk to the stairs once you have seen them, and explore otherwise.",
+    "goal": "Stairs",
+    "mustUse": ["if"],
+    "party": ["warden"]
+  }
+}

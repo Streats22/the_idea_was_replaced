@@ -1,0 +1,14 @@
+# A dictionary maps keys to values. Fill in which enemy kinds
+# are worth fighting. enemy.kind is "Slime", "Skeleton" or "Cave Troll".
+fight = {"Slime": True}
+
+while True:
+    enemy = nearest_enemy()
+    # Only attack kinds your dictionary says to fight:
+    # add   and fight.get(enemy.kind, False)   to this condition.
+    if enemy and distance(enemy) == 1:
+        attack(enemy)
+    elif stairs():
+        move_toward(stairs())
+    else:
+        explore()

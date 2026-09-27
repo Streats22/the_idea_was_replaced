@@ -1,0 +1,19 @@
+# Alone, the Seeker loses a Skeleton duel. So it sticks to the Warden
+# and joins the fight from behind.
+on signal "skeleton"(enemy):
+    print("Skeleton at", enemy.x, enemy.y, "- staying close")
+
+on low_hp():
+    recall()
+
+while True:
+    enemy = nearest_enemy()
+    warden = ally()
+    if enemy and distance(enemy) == 1:
+        attack(enemy)
+    elif warden and distance(warden) > 1:
+        move_toward(warden)
+    elif stairs() and not nearest_chest():
+        move_toward(stairs())
+    else:
+        wait()

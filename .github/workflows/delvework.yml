@@ -1,0 +1,108 @@
+name: delvework
+
+on:
+  push:
+    paths: ["delvework/**", ".github/workflows/delvework.yml"]
+  pull_request:
+    paths: ["delvework/**", ".github/workflows/delvework.yml"]
+
+defaults:
+  run:
+    working-directory: delvework
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: delvework/global.json
+      - name: Build (analyzers, warnings as errors)
+        run: dotnet build Delvework.sln -c Release
+      - name: Test
+        run: dotnet test Delvework.sln -c Release --no-build
+        env:
+          DELVEWORK_DETERMINISM_SEEDS: "200"
+      - name: Every Codex lesson is solvable (solution passes, starter fails)
+        run: dotnet src/Delvework.Cli/bin/Release/net8.0/Delvework.Cli.dll lessons --seeds 20
+      - name: Determinism sweep (1000 seeds, each run twice)
+        shell: bash
+        run: |
+          dotnet src/Delvework.Cli/bin/Release/net8.0/Delvework.Cli.dll determinism --seeds 1000 | tee determinism.txt
+          grep '^Combined hash:' determinism.txt | cut -d' ' -f3 > determinism-hash.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: determinism-${{ matrix.os }}
+          path: delvework/determinism-hash.txt
+
+  determinism-cross-platform:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: hashes
+      - name: Windows and Linux must agree
+        working-directory: .
+        run: |
+          win=$(cat hashes/determinism-windows-latest/determinism-hash.txt)
+          lin=$(cat hashes/determinism-ubuntu-latest/determinism-hash.txt)
+          echo "windows: $win"
+          echo "linux:   $lin"
+          test -n "$win" && test "$win" = "$lin"
+
+  fuzz-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: delvework/global.json
+      - run: dotnet build src/Delvework.Cli -c Release
+      - name: Fuzz for 5 minutes
+        run: dotnet src/Delvework.Cli/bin/Release/net8.0/Delvework.Cli.dll fuzz --minutes 5 --seed ${{ github.run_id }}
+
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: delvework/global.json
+      - run: dotnet build src/Delvework.Cli -c Release
+      - name: 4 golems + 60 monsters x 200 instructions/tick >= 1000 ticks/s
+        run: dotnet src/Delvework.Cli/bin/Release/net8.0/Delvework.Cli.dll bench --ticks 3000 --target 1000
+
+  game:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.7.2
+    defaults:
+      run:
+        working-directory: delvework/game
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: delvework/global.json
+      - name: Build (analyzers, warnings as errors)
+        run: dotnet build
+      - name: Install Godot ${{ env.GODOT_VERSION }} .NET
+        run: |
+          curl -sSLo godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64.zip"
+          unzip -q godot.zip -d "$RUNNER_TEMP"
+          echo "GODOT=$(ls "$RUNNER_TEMP"/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64/Godot_v*.x86_64)" >> "$GITHUB_ENV"
+      - name: Headless smoke test (every screen, every lesson passed through the UI, every delve site)
+        run: |
+          "$GODOT" --headless --path . --import
+          "$GODOT" --headless --path . -- --smoke

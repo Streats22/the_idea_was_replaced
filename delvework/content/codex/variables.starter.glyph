@@ -1,0 +1,10 @@
+while True:
+    enemy = nearest_enemy()
+    # Store nearest_chest() in a variable called chest, too.
+
+    if enemy and distance(enemy) == 1:
+        attack(enemy)
+    # elif there is a chest: walk to it with move_toward(chest)
+    # elif not explore(): everything is explored, so head for the stairs
+    else:
+        explore()

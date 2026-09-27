@@ -1,0 +1,8 @@
+while True:
+    enemy = nearest_enemy()
+    if enemy and distance(enemy) == 1:
+        attack(enemy)
+    elif stairs():
+        move_toward(stairs())
+    else:
+        explore()

@@ -1,0 +1,47 @@
+{
+  "id": "deep_mines",
+  "name": "The Deep Mines",
+  "width": 56,
+  "height": 36,
+  "rooms": [8, 11],
+  "roomSize": [4, 9],
+  "extraCorridors": 3,
+  "templates": [
+    { "shape": "rect", "weight": 5 },
+    { "shape": "pillars", "weight": 3 },
+    { "shape": "cross", "weight": 2 }
+  ],
+  "monsters": {
+    "count": [10, 15],
+    "table": [
+      { "id": "slime", "weight": 2 },
+      { "id": "skeleton", "weight": 4 },
+      { "id": "bat", "weight": 3 },
+      { "id": "fire_beetle", "weight": 3 },
+      { "id": "troll", "weight": 2 },
+      { "id": "spider", "weight": 3 },
+      { "id": "mimic", "weight": 1 },
+      { "id": "wisp", "weight": 2 }
+    ]
+  },
+  "traps": {
+    "count": [5, 9],
+    "table": [
+      { "id": "spikes", "weight": 3 },
+      { "id": "fire_vent", "weight": 2 },
+      { "id": "snare", "weight": 2 }
+    ]
+  },
+  "chests": { "count": [3, 5], "gold": [12, 25] },
+  "veins": {
+    "count": [7, 11],
+    "amount": [3, 5],
+    "table": [
+      { "id": "stone", "weight": 3 },
+      { "id": "ore", "weight": 5 },
+      { "id": "wood", "weight": 2 },
+      { "id": "crystal", "weight": 2 }
+    ]
+  },
+  "maxTicks": 8000
+}

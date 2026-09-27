@@ -1,0 +1,10 @@
+# The smelter's script. It runs one shift after every delve.
+# Every line takes one tick, and the furnace cools by 1 each tick.
+stoke()      # burn 1 wood: heat 5
+stoke()      # and another: heat 10
+smelt()      # needs heat 5 or more: 1 ore becomes 1 iron
+smelt()
+smelt()
+smelt()
+# The furnace is cooling down now. With a loop you could keep
+# going until the ore runs out, stoking when heat() gets low.

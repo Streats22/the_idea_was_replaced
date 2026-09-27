@@ -1,0 +1,8 @@
+while wheat() < 24:
+    for i in range(width()):
+        if can_harvest():
+            harvest()
+        if not growing():
+            plant(Wheat)
+        move(East)
+    move(North)

@@ -1,0 +1,5 @@
+[
+  { "name": "1. Just explore", "programs": { "warden": "1_explore_warden.glyph", "seeker": "1_explore_seeker.glyph" } },
+  { "name": "2. Fight back", "programs": { "warden": "2_fight_warden.glyph", "seeker": "2_fight_seeker.glyph" } },
+  { "name": "3. Read the Skeleton", "programs": { "warden": "3_read_warden.glyph", "seeker": "3_read_seeker.glyph" } }
+]

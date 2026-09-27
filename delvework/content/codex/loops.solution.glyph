@@ -1,0 +1,4 @@
+while move(East):
+    pass
+while True:
+    move(South)

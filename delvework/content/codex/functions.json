@@ -1,0 +1,44 @@
+{
+  "id": "functions",
+  "tier": 5,
+  "title": "Functions",
+  "summary": "Write your own commands with def and return.",
+  "reward": 40,
+  "cost": 60,
+  "pages": [
+    {
+      "title": "Your own commands",
+      "blocks": [
+        { "text": "You have been calling functions like move() and explore() since the first lesson. Now you can make your own with 'def' (short for define):" },
+        { "code": ["def step_back():", "    move(West)", "    move(West)", "", "step_back()     # runs both moves"] },
+        { "text": "Defining a function does not run it. It teaches the golem a new word. The body only runs when you call the function by name." },
+        { "tip": "Define your functions at the top of the program, before the main loop that uses them." }
+      ]
+    },
+    {
+      "title": "Parameters",
+      "blocks": [
+        { "text": "Functions get more useful when they take arguments. The names in the brackets of def are parameters: variables that are filled in by each call." },
+        { "code": ["def fight(enemy):", "    if distance(enemy) == 1:", "        attack(enemy)", "    else:", "        move_toward(enemy)", "", "fight(nearest_enemy())"] },
+        { "text": "When you call fight(nearest_enemy()), the nearest enemy is stored in 'enemy' for that call only. Variables created inside a function are local: they disappear when it finishes." }
+      ]
+    },
+    {
+      "title": "return: giving an answer back",
+      "blocks": [
+        { "text": "'return' ends the function and hands a value back to whoever called it, just like nearest_enemy() hands back an enemy:" },
+        { "code": ["def is_hurt():", "    return hp() < max_hp() / 2", "", "if is_hurt():", "    recall()"] },
+        { "text": "Good functions do one clear job and have a name that says what it is. Your main loop then reads like a plan: if is_hurt(): recall()." },
+        { "tip": "The Inspector shows the call stack: which function is running, and who called it." }
+      ]
+    }
+  ],
+  "challenge": {
+    "floor": "lesson_functions",
+    "brief": "A skeleton patrols the Bone Hall. Write a fight(enemy) function that attacks when the enemy is close and approaches it otherwise, then reach the stairs without breaking.",
+    "goal": "Stairs",
+    "noLosses": true,
+    "mustUse": ["def"],
+    "party": ["warden"]
+  }
+}

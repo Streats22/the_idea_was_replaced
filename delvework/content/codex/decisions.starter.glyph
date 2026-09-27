@@ -1,0 +1,6 @@
+while True:
+    # Replace the line below with an if / elif / else:
+    #   1. If an enemy is right next to you (distance 1), attack().
+    #   2. Otherwise, if you have seen the stairs, move_toward(stairs()).
+    #   3. Otherwise, explore().
+    explore()

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "entrance",
+    "name": "The Mine Entrance",
+    "description": "A short, quiet tunnel with three small chests and no monsters. The same every time: perfect for your first programs.",
+    "stratum": "entrance",
+    "lessons": 1
+  },
+  {
+    "id": "old_mines",
+    "name": "Old Mines, first floor",
+    "description": "The same hand-made floor every time: two slimes, two skeletons, a spike trap and two chests. Golems will need to decide when to fight.",
+    "stratum": "old_mines",
+    "lessons": 3
+  },
+  {
+    "id": "mines",
+    "name": "The Old Mines",
+    "description": "A new floor for every seed: slimes, bats, skeletons, fire beetles and the odd troll. Chests hold 5 to 15 gold.",
+    "stratum": "mines",
+    "lessons": 3
+  },
+  {
+    "id": "deep_mines",
+    "name": "The Deep Mines",
+    "description": "Bigger floors, more trolls and fire beetles, and chests with 12 to 25 gold. Bring a party.",
+    "stratum": "deep_mines",
+    "lessons": 6
+  }
+]

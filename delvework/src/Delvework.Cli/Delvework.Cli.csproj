@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Delvework.Cli</RootNamespace>
+    <AssemblyName>Delvework.Cli</AssemblyName>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Delvework.Core\Delvework.Core.csproj" />
+  </ItemGroup>
+
+</Project>

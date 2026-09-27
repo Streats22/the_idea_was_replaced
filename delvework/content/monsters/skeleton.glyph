@@ -1,0 +1,19 @@
+# Skeletons chase on sight and keep going to where they last saw a golem.
+last_seen = None
+
+while True:
+    target = adjacent_golem()
+    if target:
+        attack(target)
+        continue
+    seen = nearest_golem()
+    if seen:
+        last_seen = [seen.x, seen.y]
+    elif last_seen and distance(last_seen) == 0:
+        last_seen = None
+    if last_seen:
+        intend(Intent.Chase)
+        if not step_toward(last_seen) and not seen:
+            last_seen = None
+    else:
+        idle(2)

@@ -1,0 +1,35 @@
+# The Warden leads, fights, and grabs the chests before leaving.
+# A chasing enemy walks into you: hold still and swing first.
+# A winding-up Troll telegraphs its blow: step back out of reach.
+# move_toward() only follows known tiles, so explore when it finds no way.
+on see(enemy):
+    if enemy.kind == "Skeleton" or enemy.kind == "Cave Troll":
+        signal("danger", enemy)
+
+on low_hp():
+    recall()
+
+def step_away(enemy):
+    for d in [North, East, South, West]:
+        tile = sense_ahead(d)
+        if not tile.wall and not tile.enemy and not tile.trap:
+            if abs(tile.x - enemy.x) + abs(tile.y - enemy.y) > 1:
+                return move(d)
+    return attack(enemy)
+
+while True:
+    enemy = nearest_enemy()
+    chest = nearest_chest()
+    if enemy and distance(enemy) == 1:
+        if enemy.kind == "Cave Troll" and enemy.intent == Intent.Attack:
+            step_away(enemy)
+        else:
+            attack(enemy)
+    elif enemy and enemy.intent == Intent.Chase and distance(enemy) <= 3:
+        wait()
+    elif chest and move_toward(chest):
+        pass
+    elif stairs() and move_toward(stairs()):
+        pass
+    else:
+        explore()

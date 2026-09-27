@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Delvework.Core</RootNamespace>
+    <Description>Delvework's engine-free core: the Glyph language, the deterministic simulation, dungeon generation and replays.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Delvework.Core.Tests" />
+  </ItemGroup>
+
+</Project>

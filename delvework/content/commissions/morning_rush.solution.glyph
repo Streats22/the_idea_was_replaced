@@ -1,0 +1,6 @@
+light()
+for i in range(4):
+    knead()
+bake()
+wait(3)
+take_out()

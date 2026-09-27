@@ -1,0 +1,47 @@
+{
+  "id": "mines",
+  "name": "The Old Mines",
+  "width": 48,
+  "height": 30,
+  "rooms": [6, 9],
+  "roomSize": [4, 8],
+  "extraCorridors": 2,
+  "templates": [
+    { "shape": "rect", "weight": 6 },
+    { "shape": "pillars", "weight": 2 },
+    { "shape": "cross", "weight": 2 }
+  ],
+  "monsters": {
+    "count": [6, 10],
+    "table": [
+      { "id": "slime", "weight": 5 },
+      { "id": "skeleton", "weight": 3 },
+      { "id": "bat", "weight": 2 },
+      { "id": "fire_beetle", "weight": 2 },
+      { "id": "troll", "weight": 1 },
+      { "id": "spider", "weight": 1 },
+      { "id": "mimic", "weight": 1 },
+      { "id": "wisp", "weight": 1 }
+    ]
+  },
+  "traps": {
+    "count": [3, 6],
+    "table": [
+      { "id": "spikes", "weight": 3 },
+      { "id": "fire_vent", "weight": 1 },
+      { "id": "snare", "weight": 1 }
+    ]
+  },
+  "chests": { "count": [2, 4], "gold": [5, 15] },
+  "veins": {
+    "count": [5, 8],
+    "amount": [2, 4],
+    "table": [
+      { "id": "stone", "weight": 5 },
+      { "id": "ore", "weight": 3 },
+      { "id": "wood", "weight": 2 },
+      { "id": "crystal", "weight": 1 }
+    ]
+  },
+  "maxTicks": 6000
+}

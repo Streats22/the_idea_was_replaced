@@ -1,0 +1,15 @@
+# The farm drone's script. It runs one shift after every delve.
+# Every line takes one tick. The field is 6 wide and 4 tall.
+plant(Wheat)     # sow wheat on this tile
+move(East)
+plant(Wheat)
+move(East)
+plant(Wheat)
+wait(7)          # wheat is ripe after 8 ticks
+harvest()        # 1 wheat
+move(West)
+harvest()
+move(West)
+harvest()
+# Six tiles and four rows, and all this time to fill them. With a loop the drone
+# could sweep the whole field. Try pumpkins too: patches of them pay much more.

@@ -1,0 +1,20 @@
+# This is your golem's program. Each line is one command,
+# run from top to bottom. Press Delve to send the Warden in!
+move(East)
+move(East)
+# Grey stone in the wall above: dig it out for the village.
+mine(North)
+mine(North)
+move(East)
+# Rusty iron ore below. The Smelter turns it into iron.
+mine(South)
+move(East)
+move(East)
+# Old timber props up the ceiling here.
+mine(North)
+move(East)
+move(East)
+move(East)
+move(East)
+# Two more chests wait in the lower tunnel (South of the start),
+# and every vein holds 3. Can you get more home before the stairs?

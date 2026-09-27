@@ -1,0 +1,13 @@
+{
+  "id": "lesson_commands",
+  "name": "Codex 1: The First Steps",
+  "rows": [
+    "##########",
+    "#S..######",
+    "###.######",
+    "###...>###",
+    "##########"
+  ],
+  "legend": {},
+  "maxTicks": 400
+}

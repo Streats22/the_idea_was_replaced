@@ -1,0 +1,54 @@
+{
+  "id": "events",
+  "tier": 7,
+  "title": "Events",
+  "summary": "React the moment something happens with on handlers.",
+  "reward": 60,
+  "cost": 120,
+  "pages": [
+    {
+      "title": "Reacting to the world",
+      "blocks": [
+        { "text": "Checking hp() inside your loop works, but it's easy to forget and it only happens when that line runs. An event handler runs by itself the moment something happens:" },
+        { "code": ["on low_hp():", "    recall()"] },
+        { "text": "'on low_hp():' means 'whenever my HP drops to 30% or less, run this'. The golem finishes its current statement, runs the handler, then goes back to exactly where the main loop was." },
+        { "tip": "Handlers are written at the top level of the program, not inside a loop or function." }
+      ]
+    },
+    {
+      "title": "The events a golem feels",
+      "blocks": [
+        { "text": "Five events can wake a golem. Each handler needs a body; 'pass' stands in for your code here:" },
+        { "code": ["on see(enemy):            # an enemy comes into view", "    pass", "on hurt(amount, source):  # you took damage", "    pass", "on low_hp():              # HP fell to 30% or less (once)", "    pass", "on status(kind, ticks):   # stunned, burning or slowed", "    pass", "on signal \"help\"(data):   # a teammate called signal(\"help\", data)", "    pass"] },
+        { "text": "Handlers get information through their parameters, just like functions:" },
+        { "code": ["on hurt(amount, source):", "    print(\"ouch,\", amount, \"from\", source)"] }
+      ]
+    },
+    {
+      "title": "Knowing when to leave",
+      "blocks": [
+        { "text": "Gold only counts if it comes home. A golem that breaks drops everything it carried. recall() uses the golem's Recall Stone to teleport home safely with its loot, but each golem has only one." },
+        { "code": ["on low_hp():", "    recall()", "", "while True:", "    chest = nearest_chest()", "    if chest:", "        move_toward(chest)", "    else:", "        explore()"] },
+        { "tip": "Events make programs responsive: the main loop plans, handlers react." }
+      ]
+    },
+    {
+      "title": "Scent trails",
+      "blocks": [
+        { "text": "Ants don't talk: they leave scent on the ground, and the others follow it. Golems can do the same. mark(\"ore\") leaves a glowing mark on the tile you stand on, and smell(\"ore\") tells a teammate which way to step to reach the nearest mark with that label (or None if there's none within 8 tiles)." },
+        { "code": ["# The Seeker explores and marks every ore vein it walks past", "while True:", "    vein = nearest_vein(Ore)", "    if vein and distance(vein) <= 2:", "        mark(\"ore\")", "    explore()"] },
+        { "code": ["# The Warden follows the trail and digs", "while True:", "    vein = nearest_vein(Ore)", "    if vein and distance(vein) == 1:", "        mine(vein)", "    elif smell(\"ore\"):", "        move(smell(\"ore\"))", "        unmark()", "    else:", "        explore()"] },
+        { "text": "unmark() wipes the marks on your tile, so a trail can be used up. party() lists every golem still in the dungeon, and signal(name, data) wakes an on signal handler on every teammate." },
+        { "tip": "Marks fade after 60 seconds. Old trails disappear by themselves, so a busy party keeps laying fresh ones." }
+      ]
+    }
+  ],
+  "challenge": {
+    "floor": "lesson_events",
+    "brief": "A Cave Troll sleeps among its treasure, and it is far too strong to fight. Grab its gold and bring at least 20 home. Use an event handler to recall before you break.",
+    "goal": "Gold",
+    "gold": 20,
+    "mustUse": ["on"],
+    "party": ["warden"]
+  }
+}

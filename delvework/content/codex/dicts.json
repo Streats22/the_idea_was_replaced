@@ -1,0 +1,44 @@
+{
+  "id": "dicts",
+  "tier": 8,
+  "title": "Dictionaries",
+  "summary": "Look values up by name with key: value pairs.",
+  "reward": 80,
+  "cost": 160,
+  "pages": [
+    {
+      "title": "Looking things up",
+      "blocks": [
+        { "text": "A list finds things by position. A dictionary finds them by name. It stores key: value pairs between curly brackets:" },
+        { "code": ["danger = {\"Slime\": 1, \"Skeleton\": 3, \"Cave Troll\": 9}", "print(danger[\"Skeleton\"])    # 3"] },
+        { "text": "Write to a key to add or change it: danger[\"Bat\"] = 1. Ask whether a key is there with 'in': if \"Bat\" in danger: ..." },
+        { "tip": "danger[\"Wolf\"] is an error if there is no \"Wolf\" key. danger.get(\"Wolf\", 0) returns 0 instead." }
+      ]
+    },
+    {
+      "title": "Decisions as data",
+      "blocks": [
+        { "text": "Dictionaries let you move decisions out of long if/elif chains and into data that is easy to change:" },
+        { "code": ["fight = {\"Slime\": True, \"Skeleton\": True, \"Cave Troll\": False}", "", "enemy = nearest_enemy()", "if enemy and fight.get(enemy.kind, False):", "    attack(enemy)"] },
+        { "text": "enemy.kind is the enemy's name as a string, so it makes a perfect key." }
+      ]
+    },
+    {
+      "title": "Counting with a dictionary",
+      "blocks": [
+        { "text": "Another classic pattern: count how often each thing happens." },
+        { "code": ["seen = {}", "", "on see(enemy):", "    seen[enemy.kind] = seen.get(enemy.kind, 0) + 1", "    print(seen)"] },
+        { "text": "Loop over a dictionary's pairs with for kind, count in seen.items(), or just its keys with seen.keys()." },
+        { "tip": "Strings unlock with dictionaries too: \"troll\".upper(), name.startswith(\"Cave\"), text.split(\",\")." }
+      ]
+    }
+  ],
+  "challenge": {
+    "floor": "lesson_dicts",
+    "brief": "A troll prowls near the path to the stairs. Keep a dictionary of which enemy kinds to fight, attack only those, and reach the stairs without breaking.",
+    "goal": "Stairs",
+    "noLosses": true,
+    "mustUse": ["dict"],
+    "party": ["warden"]
+  }
+}

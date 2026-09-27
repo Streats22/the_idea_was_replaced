@@ -1,0 +1,17 @@
+[
+  { "id": "spikes", "name": "spike trap", "damage": 6, "damageType": "Physical" },
+  {
+    "id": "fire_vent",
+    "name": "fire vent",
+    "damage": 3,
+    "damageType": "Fire",
+    "status": { "status": "Burn", "ticks": 30 }
+  },
+  {
+    "id": "snare",
+    "name": "snare",
+    "damage": 1,
+    "damageType": "Physical",
+    "status": { "status": "Slow", "ticks": 40 }
+  }
+]

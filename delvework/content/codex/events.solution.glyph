@@ -1,0 +1,11 @@
+on low_hp():
+    recall()
+
+while True:
+    chest = nearest_chest()
+    if chest:
+        move_toward(chest)
+    elif stairs():
+        move_toward(stairs())
+    else:
+        explore()

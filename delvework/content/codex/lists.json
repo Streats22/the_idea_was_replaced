@@ -1,0 +1,43 @@
+{
+  "id": "lists",
+  "tier": 6,
+  "title": "Lists",
+  "summary": "Keep many values in order and loop over them with for.",
+  "reward": 50,
+  "cost": 90,
+  "pages": [
+    {
+      "title": "Many values in one",
+      "blocks": [
+        { "text": "A list holds several values in order, between square brackets:" },
+        { "code": ["kinds = [\"Slime\", \"Bat\", \"Skeleton\"]", "print(kinds[0])       # Slime: positions start at 0", "print(kinds[-1])      # Skeleton: -1 is the last one", "print(len(kinds))     # 3 items"] },
+        { "text": "Lists can grow and shrink: kinds.append(\"Troll\") adds to the end, kinds.pop() removes the last item." },
+        { "tip": "Counting from 0 is normal in almost every programming language. The first item is [0], the second is [1]." }
+      ]
+    },
+    {
+      "title": "for: once for each item",
+      "blocks": [
+        { "text": "A 'for' loop runs its body once for every item in a list, putting the item in a variable each time:" },
+        { "code": ["for enemy in enemies():", "    print(enemy.kind, enemy.hp)"] },
+        { "text": "enemies() gives a list of every enemy the golem can see, nearest first. range(n) gives the numbers 0 to n-1, handy for repeating something an exact number of times:" },
+        { "code": ["for i in range(3):", "    move(North)"] }
+      ]
+    },
+    {
+      "title": "Searching a list",
+      "blocks": [
+        { "text": "A very common pattern: loop over a list and return the first item that matches. As soon as return runs, the loop and the function end." },
+        { "code": ["def weakest_enemy():", "    best = None", "    for enemy in enemies():", "        if best == None or enemy.hp < best.hp:", "            best = enemy", "    return best"] },
+        { "text": "path_to(target) also returns a list: every [x, y] step to a target. len(path_to(stairs())) tells you how far the stairs really are, walls included." }
+      ]
+    }
+  ],
+  "challenge": {
+    "floor": "lesson_lists",
+    "brief": "Bats swarm the roost around two chests. Write adjacent_enemy(): loop over enemies() with for and return the first one next to you. Open both chests, then take the stairs.",
+    "goal": "Chests",
+    "mustUse": ["for"],
+    "party": ["warden"]
+  }
+}

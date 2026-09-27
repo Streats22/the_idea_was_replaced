@@ -1,0 +1,9 @@
+# The baker's script. It runs one shift after every delve.
+# Every line takes one tick.
+light()      # burn 1 wood: the oven fire burns 12 ticks
+knead()      # 2 wheat become 1 dough
+knead()
+bake()       # the dough goes in the oven
+wait(5)      # bread is done after 4 to 7 ticks in a burning oven
+take_out()   # 2 loaves!
+# There's more wheat in the stores. Can you bake it all?

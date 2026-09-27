@@ -1,0 +1,28 @@
+{
+  "id": "smelter",
+  "name": "Smelter",
+  "building": "v_smelter",
+  "summary": "Turn iron ore into iron. Keep the furnace hot, but don't waste wood.",
+  "order": 2,
+  "shiftTicks": 100,
+  "pages": [
+    {
+      "title": "How the furnace works",
+      "blocks": [
+        { "text": "Golems bring iron ore home from the mines. The Smelter melts it into iron, which the Forge and the Tower need. You write the smelter's script, and it runs one shift after every delve (you can also run a shift here)." },
+        { "text": "stoke() burns 1 wood and adds 5 heat. smelt() turns 1 ore into 1 iron, but only if the heat is 5 or more. Every tick you don't stoke, the furnace cools down by 1. Every command takes one tick." },
+        { "code": ["stoke()", "stoke()", "smelt()"] },
+        { "tip": "Heat can't go above 10: stoking a furnace that is already hot wastes the wood." }
+      ]
+    },
+    {
+      "title": "Smelting everything",
+      "blocks": [
+        { "text": "Once you know loops and if, you can smelt all the ore and only stoke when the fire gets low:" },
+        { "code": ["while ore() > 0:", "    if heat() < 5:", "        stoke()", "    smelt()"] },
+        { "text": "ore(), wood(), iron() and heat() tell you what's in the smelter right now. smelt() and stoke() return False when they can't work, so you can check them too." },
+        { "tip": "A shift lasts 10 seconds (100 ticks). Whatever ore and wood are left stay in your stores for next time." }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "entrance",
+  "name": "The Mine Entrance",
+  "rows": [
+    "###%##|#####",
+    "#S...C....>#",
+    "#.##&#####.#",
+    "#.C......C.#",
+    "############"
+  ],
+  "legend": {},
+  "trap": "spikes",
+  "chestGold": 5,
+  "veinAmount": 3,
+  "maxTicks": 900
+}

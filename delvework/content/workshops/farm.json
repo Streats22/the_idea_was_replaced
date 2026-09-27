@@ -1,0 +1,36 @@
+{
+  "id": "farm",
+  "name": "Farm",
+  "building": "v_farm",
+  "summary": "A little drone tends a 6 by 4 field. Plant wheat and pumpkins, water them, and harvest them when they're ripe.",
+  "order": 1,
+  "shiftTicks": 200,
+  "pages": [
+    {
+      "title": "Flying the drone",
+      "blocks": [
+        { "text": "The Wheat Fields came with an old farming drone. You write its script, and it works one shift after every delve. The field is 6 tiles wide and 4 tall, and it wraps around: fly off the east edge and the drone comes back on the west." },
+        { "text": "move(East) flies one tile. plant(Wheat) sows wheat on the tile under the drone, harvest() brings in what's there, and water() makes it grow twice as fast for a while. Every command takes one tick." },
+        { "code": ["plant(Wheat)", "move(East)", "plant(Wheat)", "wait(8)", "harvest()", "move(West)", "harvest()"] },
+        { "tip": "Wheat is ripe after 8 ticks. Harvest it too early and it's lost. can_harvest() tells you if the crop under the drone is ripe." }
+      ]
+    },
+    {
+      "title": "Sweeping the field",
+      "blocks": [
+        { "text": "Because the field wraps around, flying East 6 times brings the drone back to where it started. A loop can sweep a whole row, then step North to the next one:" },
+        { "code": ["while True:", "    for i in range(width()):", "        if can_harvest():", "            harvest()", "        if not growing():", "            plant(Wheat)", "        move(East)", "    move(North)"] },
+        { "tip": "A shift lasts 20 seconds (200 ticks). Whatever grows at the end of a shift is ploughed under, so plant early and harvest often." }
+      ]
+    },
+    {
+      "title": "Pumpkin patches",
+      "blocks": [
+        { "text": "Pumpkins take 16 ticks to ripen, and one in five rots when it does. rotten() tells you, and harvest() clears it so you can plant again." },
+        { "text": "But ripe pumpkins that touch each other form a patch, and harvest() brings in the whole patch at once: n pumpkins give n × min(n, 3). One pumpkin gives 1, a patch of 2 gives 4, a patch of 6 gives 18!" },
+        { "code": ["for i in range(3):", "    plant(Pumpkin)", "    move(East)"] },
+        { "tip": "Wait until every pumpkin in a patch is ripe before you harvest it, and replant rotten ones quickly: a rotten pumpkin splits a patch in two." }
+      ]
+    }
+  ]
+}

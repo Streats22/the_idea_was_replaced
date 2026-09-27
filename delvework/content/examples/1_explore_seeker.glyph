@@ -1,0 +1,5 @@
+while True:
+    if stairs():
+        move_toward(stairs())
+    else:
+        explore()
