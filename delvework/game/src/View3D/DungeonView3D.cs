@@ -5,34 +5,53 @@ using Godot;
 
 namespace Delvework.Game.View3D;
 
-/// <summary>
-/// The dungeon in 2.5D: a lit 3D scene rendered at low resolution for a pixel-art look, with a
-/// crisp 2D overlay for health bars, intent icons and damage numbers. Everything is derived
-/// from the timeline and a fractional playhead, so scrubbing backwards works like playing.
-/// </summary>
+/// <summary>Dungeon diorama driven by a timeline playhead; 2D overlay for bars and numbers.</summary>
 public partial class DungeonView3D : Control
 {
     private const float WallHeight = 1.25f;
     private const int EffectWindow = 8;
     private const float FigureScale = 1.25f;
+    private const int ChunkSize = 8;
+    private const float Pitch = 56f;
+    private const float KenneyWall = 1.1f;
+    private static readonly Color TorchColor = new(1f, 0.62f, 0.3f);
+
+    private sealed class TileLayer
+    {
+        public readonly List<MultiMesh> Chunks = [];
+        public int[] Chunk = [];
+        public int[] Slot = [];
+
+        public void Set(int idx, Transform3D transform, Color color)
+        {
+            if (Chunk.Length == 0 || Chunk[idx] < 0) return;
+            var mm = Chunks[Chunk[idx]];
+            mm.SetInstanceTransform(Slot[idx], transform);
+            mm.SetInstanceColor(Slot[idx], color);
+        }
+    }
 
     private SubViewport _viewport = null!;
     private Camera3D _camera = null!;
+    private DirectionalLight3D _moon = null!;
+    private Godot.Environment _env = null!;
     private Node3D _level = null!, _entities = null!, _fx = null!;
     private DungeonOverlay _overlay = null!;
     private Button _followButton = null!;
+    private OmniLightPool _torchPool = null!;
 
     private Timeline? _timeline;
     private double _playhead;
     private int _fogTick = -1;
-    private MultiMesh? _floorMm, _wallMm, _capMm;
-    private int[] _floorIndex = [], _wallIndex = [];
+    private TileLayer? _floors, _floorDetails, _walls, _caps;
+    private bool _kenneyTiles;
     private float[] _wallHeight = [];
     private readonly List<(Node3D Node, int TileIdx)> _hideInFog = [];
-    private readonly List<(Node3D Node, Node3D Lid, OmniLight3D Glint)> _chests = [];
+    private readonly List<(Node3D Node, Node3D Lid, Node3D Glint)> _chests = [];
     private readonly List<Node3D> _traps = [];
     private readonly List<(List<Node3D> Chunks, int Amount)> _veins = [];
-    private readonly List<(OmniLight3D Light, float Phase)> _torches = [];
+    private readonly List<(Node3D Node, OmniSpot Spot)> _torches = [];
+    private readonly List<OmniSpot> _litTorches = [];
     private readonly Dictionary<int, Figure> _golems = [];
     private readonly Dictionary<int, Figure> _monsters = [];
     private readonly List<Node3D> _coinPool = [];
@@ -52,7 +71,7 @@ public partial class DungeonView3D : Control
     private const float MarkLife = 600f;
 
     private Vector3 _target;
-    private float _zoom = 10f;
+    private float _zoom = 10f, _shownZoom = 10f;
     private bool _follow = true;
     private bool _dragging;
     private double _time;
@@ -70,27 +89,19 @@ public partial class DungeonView3D : Control
     public override void _Ready()
     {
         ClipContents = true;
-        var (container, viewport) = Iso.PixelViewport();
-        container.SetAnchorsPreset(LayoutPreset.FullRect);
-        AddChild(container);
-        _viewport = viewport;
-
-        var env = Iso.Environment(new Color("07080a"), new Color("6a7aa0"), 0.5f);
-        viewport.AddChild(new WorldEnvironment { Environment = env });
-        _camera = Iso.Camera(_zoom);
-        viewport.AddChild(_camera);
-        viewport.AddChild(new DirectionalLight3D
-        {
-            LightColor = new Color("6f7fa8"),
-            LightEnergy = 0.12f,
-            RotationDegrees = new Vector3(-60, 30, 0),
-        });
+        var scene = Iso.Mount(this, new Color("0e1117"), new Color("7282a8"), 0.6f, new Color("8a98c8"), 0.35f, new Vector3(-58, 30, 0), 40f);
+        _viewport = scene.Viewport;
+        _camera = scene.Camera;
+        _moon = scene.Sun;
+        _env = scene.Env;
+        _torchPool = new OmniLightPool(_viewport, TorchColor, 1.3f, 4.5f);
         _level = new Node3D { Name = "Level" };
         _entities = new Node3D { Name = "Entities" };
         _fx = new Node3D { Name = "Effects" };
-        viewport.AddChild(_level);
-        viewport.AddChild(_entities);
-        viewport.AddChild(_fx);
+        _viewport.AddChild(_level);
+        _viewport.AddChild(_entities);
+        _viewport.AddChild(_fx);
+        Graphics.Changed += OnGraphicsChanged;
 
         _overlay = new DungeonOverlay(this) { MouseFilter = MouseFilterEnum.Ignore };
         _overlay.SetAnchorsPreset(LayoutPreset.FullRect);
@@ -110,17 +121,20 @@ public partial class DungeonView3D : Control
         _followButton.OffsetBottom = -114;
         _followButton.Toggled += on => _follow = on;
         AddChild(_followButton);
-        Iso.Aim(_camera, _target);
+        Iso.Aim(_camera, _target, Distance(_zoom), Iso.Yaw, Pitch);
     }
 
-    public Camera3D Camera => _camera;
+    public override void _ExitTree() => Graphics.Changed -= OnGraphicsChanged;
 
-    /// <summary>How far left of the view's centre the party is framed, in screen pixels, to leave room for a panel on the right.</summary>
+    private void OnGraphicsChanged() => Graphics.Apply(_moon, _env, _viewport);
+
+    private float Distance(float height) => height / (2f * Mathf.Tan(Mathf.DegToRad(_camera.Fov) / 2));
+
+    public Camera3D Camera => _camera;
     public float ShiftPixels { get; set; }
     public Timeline? Timeline => _timeline;
     public double Playhead => _playhead;
 
-    /// <summary>Show <paramref name="timeline"/> at <paramref name="playhead"/> (fractional ticks).</summary>
     public void Display(Timeline? timeline, double playhead)
     {
         if (!ReferenceEquals(timeline, _timeline))
@@ -141,16 +155,33 @@ public partial class DungeonView3D : Control
         UpdateEntities(delta);
         UpdateEffects();
         UpdateMarks(frame);
-        foreach (var (light, phase) in _torches)
-        {
-            light.LightEnergy = 1.3f + 0.25f * Mathf.Sin((float)_time * 9f + phase) + 0.15f * Mathf.Sin((float)_time * 23f + phase * 2);
-        }
         var desired = _follow ? PartyCenter() ?? _target : _target;
         _target = _target.Lerp(desired, (float)Math.Min(1, delta * 4));
-        _camera.Size = Mathf.Lerp(_camera.Size, _zoom, (float)Math.Min(1, delta * 8));
-        Iso.Aim(_camera, _target);
-        _camera.HOffset = Mathf.Lerp(_camera.HOffset, Size.Y > 0 ? ShiftPixels * _camera.Size / Size.Y : 0, (float)Math.Min(1, delta * 6));
+        _shownZoom = Mathf.Lerp(_shownZoom, _zoom, (float)Math.Min(1, delta * 8));
+        var dist = Distance(_shownZoom);
+        Iso.Aim(_camera, _target, dist, Iso.Yaw, Pitch);
+        var worldShift = Size.Y > 0 ? ShiftPixels * Iso.UnitsPerPixel(_camera, dist, Size.Y) : 0;
+        _camera.HOffset = Mathf.Lerp(_camera.HOffset, worldShift, (float)Math.Min(1, delta * 6));
+        UpdateTorchLights();
+        foreach (var coins in _coinPool)
+        {
+            if (coins.Visible) coins.Rotation = new Vector3(0, (float)_time * 1.6f + coins.Position.X, 0);
+        }
+        foreach (var tablet in _tabletPool)
+        {
+            if (tablet.Visible) tablet.Rotation = new Vector3(0, 0.35f * Mathf.Sin((float)_time * 0.8f + tablet.Position.X), 0);
+        }
         _overlay.QueueRedraw();
+    }
+
+    private void UpdateTorchLights()
+    {
+        _litTorches.Clear();
+        foreach (var (node, spot) in _torches)
+        {
+            if (node.Visible) _litTorches.Add(spot);
+        }
+        _torchPool.AssignNearest(_litTorches, _target, 1f, (float)_time);
     }
 
     public override void _GuiInput(InputEvent e)
@@ -171,8 +202,8 @@ public partial class DungeonView3D : Control
                 break;
             case InputEventMouseMotion m when _dragging:
                 Follow = false;
-                var unitsPerPixel = _camera.Size / Math.Max(1, Size.Y);
-                _target += Iso.GroundPan(_camera, m.Relative, unitsPerPixel * 1.4f);
+                var unitsPerPixel = Iso.UnitsPerPixel(_camera, Distance(_shownZoom), Size.Y);
+                _target += Iso.GroundPan(_camera, m.Relative, unitsPerPixel * 1.2f);
                 AcceptEvent();
                 break;
         }
@@ -182,11 +213,20 @@ public partial class DungeonView3D : Control
 
     private static Vector3 W(Pos p, float y = 0) => new(p.X, y, p.Y);
 
+    private static void FreeChildren(Node parent)
+    {
+        foreach (var child in parent.GetChildren())
+        {
+            parent.RemoveChild(child);
+            child.Free();
+        }
+    }
+
     private void Rebuild()
     {
-        foreach (var n in _level.GetChildren()) n.QueueFree();
-        foreach (var n in _entities.GetChildren()) n.QueueFree();
-        foreach (var n in _fx.GetChildren()) n.QueueFree();
+        FreeChildren(_level);
+        FreeChildren(_entities);
+        FreeChildren(_fx);
         _hideInFog.Clear();
         _chests.Clear();
         _traps.Clear();
@@ -220,76 +260,80 @@ public partial class DungeonView3D : Control
             return false;
         }
 
-        _floorIndex = new int[grid.Width * grid.Height];
-        _wallIndex = new int[grid.Width * grid.Height];
-        Array.Fill(_floorIndex, -1);
-        Array.Fill(_wallIndex, -1);
+        var floorMesh = Kenney.Mesh(Kenney.Dungeon, "floor");
+        var wallMesh = Kenney.Mesh(Kenney.Dungeon, "wall");
+        var tileMaterial = Kenney.TileMaterial(Kenney.Dungeon, "floor");
+        _kenneyTiles = floorMesh is not null && wallMesh is not null && tileMaterial is not null;
+
         var floors = new List<Pos>();
+        var details = new List<Pos>();
         var walls = new List<Pos>();
         for (var y = 0; y < grid.Height; y++)
         {
             for (var x = 0; x < grid.Width; x++)
             {
-                if (Floor(x, y)) floors.Add(new Pos(x, y));
+                if (Floor(x, y)) (_kenneyTiles && Iso.Hash(x, y, 4) < 0.14f ? details : floors).Add(new Pos(x, y));
                 else if (NearFloor(x, y)) walls.Add(new Pos(x, y));
             }
         }
-
-        _floorMm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = new BoxMesh { Size = new Vector3(1, 0.2f, 1) } };
-        _floorMm.InstanceCount = floors.Count;
-        for (var i = 0; i < floors.Count; i++) _floorIndex[grid.Idx(floors[i])] = i;
-        _level.AddChild(new MultiMeshInstance3D
+        _wallHeight = new float[grid.Width * grid.Height];
+        foreach (var p in walls)
         {
-            Multimesh = _floorMm,
-            MaterialOverride = Iso.Flagstone(new Color("6b6259"), new Color("3a332d"), 0.55f, "dungeon-floor"),
-        });
-
-        _wallMm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = new BoxMesh { Size = Vector3.One } };
-        _wallMm.InstanceCount = walls.Count;
-        _capMm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = new BoxMesh { Size = new Vector3(1.02f, 0.08f, 1.02f) } };
-        _capMm.InstanceCount = walls.Count;
-        _wallHeight = new float[walls.Count];
-        for (var i = 0; i < walls.Count; i++)
-        {
-            var p = walls[i];
-            _wallIndex[grid.Idx(p)] = i;
             // The camera looks from +X/+Z, so walls on that side of a floor would hide it: cut them down.
             var front = Floor(p.X - 1, p.Y) || Floor(p.X, p.Y - 1) || Floor(p.X - 1, p.Y - 1);
-            _wallHeight[i] = front ? 0.32f : WallHeight * (1f + (Iso.Hash(p.X, p.Y, 3) - 0.5f) * 0.12f);
+            _wallHeight[grid.Idx(p)] = front ? 0.32f : WallHeight * (1f + (Iso.Hash(p.X, p.Y, 3) - 0.5f) * 0.12f);
         }
-        _level.AddChild(new MultiMeshInstance3D
-        {
-            Multimesh = _wallMm,
-            MaterialOverride = Iso.Flagstone(new Color("6a5f55"), new Color("2e2823"), 0.8f, "dungeon-wall"),
-        });
-        _level.AddChild(new MultiMeshInstance3D
-        {
-            Multimesh = _capMm,
-            MaterialOverride = Iso.Flagstone(new Color("8f8374"), new Color("4a4038"), 0.9f, "dungeon-cap"),
-        });
 
-        var mortar = Iso.Solid(new Color("2a2420"));
-        var sconce = new StandardMaterial3D { AlbedoColor = new Color("5a4632"), Metallic = 0.6f, Roughness = 0.5f };
+        BuildSlab(grid.Width, grid.Height);
+        if (floorMesh is not null && wallMesh is not null && tileMaterial is not null)
+        {
+            _floors = Layer(floors, grid, floorMesh, tileMaterial);
+            _floorDetails = Layer(details, grid, Kenney.Mesh(Kenney.Dungeon, "floor-detail") ?? floorMesh, tileMaterial);
+            _walls = Layer(walls, grid, wallMesh, tileMaterial);
+            _caps = null;
+        }
+        else
+        {
+            _floors = Layer(floors, grid, new BoxMesh { Size = new Vector3(1, 0.2f, 1) }, Iso.Flat(new Color("5e564e")));
+            _floorDetails = null;
+            _walls = Layer(walls, grid, new BoxMesh { Size = Vector3.One }, Iso.Flat(new Color("565049")));
+            _caps = Layer(walls, grid, new BoxMesh { Size = new Vector3(1.02f, 0.08f, 1.02f) }, Iso.Flat(new Color("7d7366")));
+        }
+
+        var sconce = Iso.Solid(new Color("5a4632"), 0.5f, 0.6f);
         var flame = Iso.Glow(new Color("ffa640"), 5f);
         foreach (var p in walls)
         {
-            if (Iso.Hash(p.X, p.Y, 7) > 0.07f) continue;
-            var face = new[] { (0, 1), (1, 0) }.FirstOrDefault(d => Floor(p.X + d.Item1, p.Y + d.Item2));
+            var roll = Iso.Hash(p.X, p.Y, 7);
+            if (roll > 0.15f || _wallHeight[grid.Idx(p)] < WallHeight * 0.8f) continue;
+            var face = WallFaces.FirstOrDefault(d => Floor(p.X + d.Item1, p.Y + d.Item2));
             if (face == default) continue;
-            var node = new Node3D { Position = W(p) + new Vector3(face.Item1 * 0.52f, 0.85f, face.Item2 * 0.52f) };
-            Iso.Box(node, new Vector3(0.1f, 0.25f, 0.1f), Vector3.Zero, sconce);
-            Iso.Ball(node, 0.07f, new Vector3(0, 0.18f, 0), flame, new Vector3(1, 1.6f, 1));
-            var light = Iso.Light(node, new Vector3(face.Item1 * 0.3f, 0.3f, face.Item2 * 0.3f), new Color(1f, 0.62f, 0.3f), 1.3f, 4.5f);
-            _torches.Add((light, Iso.Hash(p.X, p.Y, 9) * 10));
-            _level.AddChild(node);
-            _hideInFog.Add((node, grid.Idx(p)));
+            var yaw = face.Item1 != 0 ? 90 : 0;
+            Node3D? node;
+            if (roll < 0.07f)
+            {
+                node = new Node3D { Position = W(p) + new Vector3(face.Item1 * 0.52f, 0.85f, face.Item2 * 0.52f) };
+                Iso.Box(node, new Vector3(0.1f, 0.25f, 0.1f), Vector3.Zero, sconce);
+                Iso.Ball(node, 0.07f, new Vector3(0, 0.18f, 0), flame, new Vector3(1, 1.6f, 1));
+                _level.AddChild(node);
+                var at = node.Position + new Vector3(face.Item1 * 0.3f, 0.3f, face.Item2 * 0.3f);
+                _torches.Add((node, new OmniSpot(at, TorchColor, 1.3f, 4.5f, Iso.Hash(p.X, p.Y, 9) * 10)));
+            }
+            else if (roll < 0.12f)
+            {
+                node = Kenney.Spawn(_level, Kenney.Dungeon, "wood-support", W(p, 0.1f) + new Vector3(face.Item1 * 0.62f, 0, face.Item2 * 0.62f), yaw, 1.1f);
+            }
+            else
+            {
+                node = Kenney.Spawn(_level, Kenney.Dungeon, "banner", W(p, 0.1f) + new Vector3(face.Item1, 0, face.Item2), yaw, 1.2f);
+            }
+            if (node is not null) _hideInFog.Add((node, grid.Idx(p)));
         }
-        _ = mortar;
 
         BuildStairs(w.Stairs);
         foreach (var c in w.Chests) BuildChest(c.Pos);
         foreach (var t in w.Traps) BuildTrap(t.Pos, t.Def.Id);
-        foreach (var v in w.Veins) BuildVein(v, Floor, _wallHeight[_wallIndex[grid.Idx(v.Pos)]]);
+        foreach (var v in w.Veins) BuildVein(v, Floor, _wallHeight[grid.Idx(v.Pos)]);
 
         foreach (var g in _timeline.Frames[0].Golems)
         {
@@ -309,23 +353,59 @@ public partial class DungeonView3D : Control
             _monsters[m.Id] = fig;
         }
 
-        _zoom = Mathf.Clamp(Math.Max(grid.Width, grid.Height) * 0.35f, 5f, 6.5f);
-        _camera.Size = _zoom;
+        _zoom = Mathf.Clamp(Math.Max(grid.Width, grid.Height) * 0.4f, 6f, 8f);
+        _shownZoom = _zoom;
         _target = PartyCenter() ?? W(w.Start);
         Follow = true;
+    }
+
+    /// <summary>Wall faces the camera sees: a wall with floor to its +Z or +X side.</summary>
+    private static readonly (int, int)[] WallFaces = [(0, 1), (1, 0)];
+
+    /// <summary>The diorama board under the grid: its top shows where nothing is explored yet.</summary>
+    private void BuildSlab(int width, int height)
+    {
+        var center = new Vector3((width - 1) / 2f, 0, (height - 1) / 2f);
+        Iso.Box(_level, new Vector3(width + 1.2f, 1.2f, height + 1.2f), center + new Vector3(0, -0.6f, 0), Iso.Flat(new Color("2b2622")));
+        Iso.Box(_level, new Vector3(width + 0.7f, 0.8f, height + 0.7f), center + new Vector3(0, -1.6f, 0), Iso.Flat(new Color("1a1614")));
+    }
+
+    private static Transform3D FogHidden(Pos p) => new(Basis.Identity.Scaled(Vector3.Zero), new Vector3(p.X, 0, p.Y));
+
+    /// <summary>One multimesh per <see cref="ChunkSize"/> square of the grid, all tiles hidden until the fog lifts.</summary>
+    private TileLayer Layer(List<Pos> tiles, Grid grid, Mesh mesh, Material material)
+    {
+        var layer = new TileLayer { Chunk = new int[grid.Width * grid.Height], Slot = new int[grid.Width * grid.Height] };
+        Array.Fill(layer.Chunk, -1);
+        foreach (var group in tiles.GroupBy(p => (p.X / ChunkSize, p.Y / ChunkSize)))
+        {
+            var list = group.ToList();
+            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = mesh };
+            mm.InstanceCount = list.Count;
+            for (var i = 0; i < list.Count; i++)
+            {
+                var idx = grid.Idx(list[i]);
+                layer.Chunk[idx] = layer.Chunks.Count;
+                layer.Slot[idx] = i;
+                mm.SetInstanceTransform(i, FogHidden(list[i]));
+            }
+            layer.Chunks.Add(mm);
+            _level.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = material });
+        }
+        return layer;
     }
 
     private void BuildStairs(Pos p)
     {
         var node = new Node3D { Position = W(p) };
         var dark = Iso.Solid(new Color("050507"));
-        var step = Iso.Flagstone(new Color("6b6259"), new Color("3a332d"), 0.55f, "dungeon-floor");
+        var step = Iso.Flat(new Color("6b6259"));
         Iso.Box(node, new Vector3(0.9f, 0.02f, 0.9f), new Vector3(0, 0.1f, 0), dark);
         for (var i = 0; i < 3; i++) Iso.Box(node, new Vector3(0.8f, 0.12f, 0.24f), new Vector3(0, 0.02f - i * 0.12f, -0.3f + i * 0.25f), step);
         var rune = Iso.Glow(new Color("5dd3e8"), 3f);
         var ring = new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = 0.42f, OuterRadius = 0.48f, Rings = 24, RingSegments = 4 }, Position = new Vector3(0, 0.12f, 0), MaterialOverride = rune };
         node.AddChild(ring);
-        Iso.Light(node, new Vector3(0, 0.8f, 0), new Color("5dd3e8"), 1.4f, 3.5f);
+        Iso.Ball(node, 0.08f, new Vector3(0, 0.5f, 0), Iso.Glow(new Color("5dd3e8"), 2.5f));
         _level.AddChild(node);
         _hideInFog.Add((node, _timeline!.Final.Grid.Idx(p)));
     }
@@ -333,15 +413,25 @@ public partial class DungeonView3D : Control
     private void BuildChest(Pos p)
     {
         var node = new Node3D { Position = W(p, 0.1f), RotationDegrees = new Vector3(0, Iso.Hash(p.X, p.Y) * 40 - 20, 0) };
-        var wood = Iso.Wood(new Color("8a5a2e"), new Color("4a2e16"), "chest-wood");
-        var brass = new StandardMaterial3D { AlbedoColor = new Color("d4a24a"), Metallic = 0.8f, Roughness = 0.35f };
-        Iso.Box(node, new Vector3(0.62f, 0.32f, 0.42f), new Vector3(0, 0.16f, 0), wood);
-        Iso.Box(node, new Vector3(0.64f, 0.05f, 0.44f), new Vector3(0, 0.3f, 0), brass);
-        var hinge = new Node3D { Position = new Vector3(0, 0.32f, -0.21f) };
-        node.AddChild(hinge);
-        var lid = Iso.Box(hinge, new Vector3(0.62f, 0.16f, 0.42f), new Vector3(0, 0.08f, 0.21f), wood);
-        Iso.Box(lid, new Vector3(0.1f, 0.12f, 0.03f), new Vector3(0, -0.04f, 0.22f), brass);
-        var glint = Iso.Light(node, new Vector3(0, 0.7f, 0.3f), new Color("ffd27a"), 0.5f, 2f);
+        Node3D hinge;
+        if (Kenney.Spawn(node, Kenney.Dungeon, "chest", Vector3.Zero, 0, 1.3f) is { } model && model.FindChild("lid", true, false) is Node3D kenneyLid)
+        {
+            hinge = kenneyLid;
+        }
+        else
+        {
+            var wood = Iso.Flat(new Color("7a4e28"));
+            var brass = Iso.Solid(new Color("d4a24a"), 0.35f, 0.8f);
+            Iso.Box(node, new Vector3(0.62f, 0.32f, 0.42f), new Vector3(0, 0.16f, 0), wood);
+            Iso.Box(node, new Vector3(0.64f, 0.05f, 0.44f), new Vector3(0, 0.3f, 0), brass);
+            hinge = new Node3D { Position = new Vector3(0, 0.32f, -0.21f) };
+            node.AddChild(hinge);
+            var lid = Iso.Box(hinge, new Vector3(0.62f, 0.16f, 0.42f), new Vector3(0, 0.08f, 0.21f), wood);
+            Iso.Box(lid, new Vector3(0.1f, 0.12f, 0.03f), new Vector3(0, -0.04f, 0.22f), brass);
+        }
+        var glint = new Node3D { Position = new Vector3(0, 0.75f, 0) };
+        node.AddChild(glint);
+        Iso.Box(glint, new Vector3(0.07f, 0.07f, 0.07f), Vector3.Zero, Iso.Glow(new Color("ffd27a"), 3f), new Vector3(45, 0, 45));
         _level.AddChild(node);
         _chests.Add((node, hinge, glint));
         _hideInFog.Add((node, _timeline!.Final.Grid.Idx(p)));
@@ -353,10 +443,10 @@ public partial class DungeonView3D : Control
         var node = new Node3D { Position = W(v.Pos) };
         var (main, accent) = Resources.Mined[v.Kind] switch
         {
-            Resources.Ore => (Iso.Rock(new Color("b0603a"), new Color("5a2a18"), 0.6f, "vein-ore"), Iso.Glow(new Color("ff9a50"), 1.6f)),
-            Resources.Wood => (Iso.Wood(new Color("8a5a30"), new Color("43291a"), "vein-timber"), Iso.Wood(new Color("6a4424"), new Color("2e1c10"), "vein-timber-dark")),
+            Resources.Ore => (Iso.Flat(new Color("a0583a")), Iso.Glow(new Color("ff9a50"), 1.6f)),
+            Resources.Wood => (Iso.Flat(new Color("7a5030")), Iso.Flat(new Color("573a20"))),
             Resources.Crystal => (Iso.Glow(new Color("7ab8ff"), 1.8f), Iso.Glow(new Color("d0a0ff"), 3.2f)),
-            _ => (Iso.Rock(new Color("c8c2b8"), new Color("7a746a"), 0.5f, "vein-stone"), Iso.Solid(new Color("e8e4dc"), 0.4f)),
+            _ => (Iso.Flat(new Color("b4aea4")), Iso.Solid(new Color("e8e4dc"), 0.4f)),
         };
         var faces = Dirs.All.Where(d => floor(v.Pos.Step(d).X, v.Pos.Step(d).Y)).ToList();
         var chunks = new List<Node3D>();
@@ -391,11 +481,6 @@ public partial class DungeonView3D : Control
             }
             chunks.Add(chunk);
         }
-        if (Resources.Mined[v.Kind] == Resources.Crystal)
-        {
-            var glow = Iso.Light(node, new Vector3(0, 0.6f, 0), new Color("a0b8ff"), 0.9f, 2.6f);
-            chunks.Insert(0, glow);
-        }
         _level.AddChild(node);
         _veins.Add((chunks, v.Amount));
         _hideInFog.Add((node, _timeline!.Final.Grid.Idx(v.Pos)));
@@ -404,6 +489,9 @@ public partial class DungeonView3D : Control
     private void BuildTrap(Pos p, string id)
     {
         var node = new Node3D { Position = W(p, 0.1f), Visible = false };
+        _level.AddChild(node);
+        _traps.Add(node);
+        if (id is not ("fire_vent" or "snare") && Kenney.Spawn(node, Kenney.Dungeon, "trap", Vector3.Zero) is not null) return;
         var plate = Iso.Solid(new Color("3c3a38"), 0.6f, 0.5f);
         Iso.Box(node, new Vector3(0.8f, 0.03f, 0.8f), new Vector3(0, 0.015f, 0), plate);
         var tip = id switch
@@ -422,8 +510,6 @@ public partial class DungeonView3D : Control
             };
             node.AddChild(spike);
         }
-        _level.AddChild(node);
-        _traps.Add(node);
     }
 
     private void UpdateFog(TickFrame f)
@@ -431,28 +517,25 @@ public partial class DungeonView3D : Control
         _fogTick = f.Tick;
         var w = _timeline!.Final;
         var grid = w.Grid;
-        var hidden = new Transform3D(Basis.Identity.Scaled(Vector3.Zero), Vector3.Zero);
         for (var idx = 0; idx < f.Fog.Length; idx++)
         {
             var x = idx % grid.Width;
             var y = idx / grid.Width;
             var fog = f.Fog[idx];
-            var shade = 0.85f + Iso.Hash(x, y, 1) * 0.3f;
+            var hidden = FogHidden(new Pos(x, y));
+            var shade = 0.9f + Iso.Hash(x, y, 1) * 0.2f;
             var color = fog == 2 ? new Color(shade, shade, shade) : new Color(0.42f * shade, 0.45f * shade, 0.58f * shade);
-            if (_floorIndex[idx] is var fi and >= 0)
-            {
-                var jitter = (Iso.Hash(x, y, 2) - 0.5f) * 0.04f;
-                _floorMm!.SetInstanceTransform(fi, fog == 0 ? hidden : new Transform3D(Basis.Identity, new Vector3(x, jitter, y)));
-                _floorMm.SetInstanceColor(fi, color);
-            }
-            if (_wallIndex[idx] is var wi and >= 0)
-            {
-                var h = _wallHeight[wi];
-                _wallMm!.SetInstanceTransform(wi, fog == 0 ? hidden : new Transform3D(Basis.Identity.Scaled(new Vector3(1, h, 1)), new Vector3(x, h / 2, y)));
-                _wallMm.SetInstanceColor(wi, color);
-                _capMm!.SetInstanceTransform(wi, fog == 0 ? hidden : new Transform3D(Basis.Identity, new Vector3(x, h + 0.04f, y)));
-                _capMm.SetInstanceColor(wi, color);
-            }
+            var jitter = (Iso.Hash(x, y, 2) - 0.5f) * 0.03f;
+            // Kenney tiles have their origin at the bottom; the fallback boxes are centred.
+            var floor = new Transform3D(Basis.Identity, new Vector3(x, _kenneyTiles ? 0.1f + jitter : jitter, y));
+            _floors?.Set(idx, fog == 0 ? hidden : floor, color);
+            _floorDetails?.Set(idx, fog == 0 ? hidden : floor, color);
+            var h = _wallHeight[idx];
+            var wall = _kenneyTiles
+                ? new Transform3D(Basis.Identity.Scaled(new Vector3(1, h / KenneyWall, 1)), new Vector3(x, 0, y))
+                : new Transform3D(Basis.Identity.Scaled(new Vector3(1, h, 1)), new Vector3(x, h / 2, y));
+            _walls?.Set(idx, fog == 0 ? hidden : wall, color);
+            _caps?.Set(idx, fog == 0 ? hidden : new Transform3D(Basis.Identity, new Vector3(x, h + 0.04f, y)), color);
         }
         foreach (var (node, tile) in _hideInFog) node.Visible = f.Fog[tile] > 0;
         for (var i = 0; i < _chests.Count; i++)
@@ -485,7 +568,6 @@ public partial class DungeonView3D : Control
                 var slab = _tabletPool[tablets++];
                 var bob = (float)_time * 1.6f + d.Pos.X * 0.7f;
                 slab.Position = W(d.Pos, 0.08f + 0.05f * Mathf.Sin(bob));
-                slab.Rotation = new Vector3(0, 0.35f * Mathf.Sin(bob * 0.5f), 0);
                 slab.Visible = true;
                 continue;
             }
@@ -527,10 +609,7 @@ public partial class DungeonView3D : Control
             rune.Position = W(m.Pos, 0.13f);
             rune.Rotation = new Vector3(0, time * 0.8f + m.CreatedTick, 0);
             rune.Scale = Vector3.One * (0.9f + 0.1f * Mathf.Sin(time * 3 + m.CreatedTick));
-            var mat = (StandardMaterial3D)rune.MaterialOverride;
-            mat.Emission = color;
-            mat.AlbedoColor = color;
-            mat.EmissionEnergyMultiplier = 3f * fade;
+            Iso.Tint((StandardMaterial3D)rune.MaterialOverride, color, 3f * fade);
         }
         foreach (var trail in marks.GroupBy(m => m.Label))
         {
@@ -553,8 +632,7 @@ public partial class DungeonView3D : Control
                     });
                     dot.Position = from.Lerp(to, s) + new Vector3(0, 0.06f * Mathf.Sin(s * Mathf.Tau * 2 + time * 3), 0);
                     dot.Scale = Vector3.One * (0.6f + 0.6f * Mathf.Sin(s * Mathf.Pi));
-                    ((StandardMaterial3D)dot.MaterialOverride).Emission = color;
-                    ((StandardMaterial3D)dot.MaterialOverride).AlbedoColor = color;
+                    Iso.Tint((StandardMaterial3D)dot.MaterialOverride, color);
                 }
             }
         }
@@ -562,11 +640,10 @@ public partial class DungeonView3D : Control
         for (var i = dots; i < _threadPool.Count; i++) _threadPool[i].Visible = false;
     }
 
-    /// <summary>A standing stone slab with a glowing rune carved in it, on a small plinth.</summary>
     private Node3D MakeTablet()
     {
         var node = new Node3D();
-        var stone = Iso.Rock(new Color("8a8478"), new Color("3e3a34"), 0.7f, "rune-tablet");
+        var stone = Iso.Solid(new Color("8a8478"), 0.85f, 0.1f);
         Iso.Box(node, new Vector3(0.46f, 0.08f, 0.26f), new Vector3(0, 0.04f, 0), stone);
         Iso.Box(node, new Vector3(0.36f, 0.5f, 0.1f), new Vector3(0, 0.33f, 0), stone);
         var rune = Iso.Glow(new Color("7fe0ff"), 4f);
@@ -579,7 +656,6 @@ public partial class DungeonView3D : Control
             Position = new Vector3(0, 0.02f, 0),
             MaterialOverride = Iso.Glow(new Color("5dd3e8"), 2.5f),
         });
-        Iso.Light(node, new Vector3(0, 0.7f, 0.3f), new Color("7fe0ff"), 1.6f, 3.2f);
         _fx.AddChild(node);
         return node;
     }
@@ -587,12 +663,13 @@ public partial class DungeonView3D : Control
     private Node3D MakeCoins()
     {
         var node = new Node3D();
+        _fx.AddChild(node);
+        if (Kenney.Spawn(node, Kenney.Dungeon, "coin", Vector3.Zero, 0, 0.75f) is not null) return node;
         var gold = new StandardMaterial3D { AlbedoColor = new Color("ffcc4d"), Metallic = 0.9f, Roughness = 0.25f, EmissionEnabled = true, Emission = new Color("ffaa00"), EmissionEnergyMultiplier = 0.4f };
         for (var i = 0; i < 4; i++)
         {
             Iso.Cylinder(node, 0.07f, 0.07f, 0.03f, new Vector3((i % 2) * 0.1f - 0.05f, 0.02f + i * 0.02f, (i / 2) * 0.08f - 0.04f), gold, 8);
         }
-        _fx.AddChild(node);
         return node;
     }
 
@@ -690,7 +767,6 @@ public partial class DungeonView3D : Control
                 fig.Core.Emission = broken ? new Color("333333") : g.State == GolemState.Halted ? new Color("f07178") : fig.Accent.Lerp(Colors.White, f * 0.8f);
                 fig.Core.EmissionEnergyMultiplier = broken ? 0 : pulse + f * 4;
             }
-            if (fig.Light is not null) fig.Light.Visible = !broken;
             UpdateShield(g, fig);
         }
 
@@ -708,6 +784,7 @@ public partial class DungeonView3D : Control
             if (dir.LengthSquared() > 0.01f) fig.Root.Rotation = new Vector3(0, Yaw(dir), 0);
             else if (nearest is not null && nearest.Pos.Manhattan(m.Pos) <= 2) fig.Root.Rotation = new Vector3(0, Mathf.LerpAngle(fig.Root.Rotation.Y, Yaw(W(nearest.Pos) - W(m.Pos)), 0.2f), 0);
             var phase = m.Id * 1.7f;
+            Kenney.Play(fig.Anim, dir.LengthSquared() > 0 ? "walk" : "idle");
             switch (m.DefId)
             {
                 case "slime":
@@ -725,7 +802,7 @@ public partial class DungeonView3D : Control
                     fig.Body.Position = new Vector3(Mathf.Sin(time * 1.7f + phase) * 0.06f, 0.15f * Mathf.Sin(time * 2.3f + phase), 0);
                     fig.Body.Scale = Vector3.One * (1 + 0.08f * Mathf.Sin(time * 7 + phase));
                     if (fig.LeftWing is not null) fig.LeftWing.Rotation = new Vector3(0, Mathf.Sin(time * 3 + phase) * 0.6f, 0);
-                    if (fig.Light is not null) fig.Light.LightEnergy = 1.2f + 0.4f * Mathf.Sin(time * 5 + phase);
+                    if (fig.Core is not null) fig.Core.EmissionEnergyMultiplier = 2.5f + 0.8f * Mathf.Sin(time * 5 + phase);
                     break;
                 case "mimic":
                     var moved = dir.LengthSquared() > 0;
@@ -796,8 +873,7 @@ public partial class DungeonView3D : Control
         var tt = age / EffectWindow;
         mi.Position = at + new Vector3(Mathf.Cos(angle) * spread * speed * tt, 0.3f + rise * tt - 1.5f * tt * tt, Mathf.Sin(angle) * spread * speed * tt);
         mi.Scale = Vector3.One * Math.Max(0.05f, 1 - tt);
-        ((StandardMaterial3D)mi.MaterialOverride).Emission = color;
-        ((StandardMaterial3D)mi.MaterialOverride).AlbedoColor = color;
+        Iso.Tint((StandardMaterial3D)mi.MaterialOverride, color);
     }
 
     private void UpdateEffects()
@@ -875,8 +951,7 @@ public partial class DungeonView3D : Control
                             MaterialOverride = Iso.Glow(new Color("c792ea"), 6f),
                         });
                         var color = e.Kind == EffectKind.Descend ? new Color("5dd3e8") : new Color("ffd24a");
-                        ((StandardMaterial3D)col.MaterialOverride).Emission = color;
-                        ((StandardMaterial3D)col.MaterialOverride).AlbedoColor = color;
+                        Iso.Tint((StandardMaterial3D)col.MaterialOverride, color);
                         col.Basis = Basis.Identity;
                         col.Position = at + Vector3.Up * 1.5f;
                         col.Scale = new Vector3(6 * (1 - age / EffectWindow), 3, 6 * (1 - age / EffectWindow));
@@ -891,14 +966,7 @@ public partial class DungeonView3D : Control
         for (var i = _ringsUsed; i < _ringPool.Count; i++) _ringPool[i].Visible = false;
     }
 
-    // ----- Overlay data -----
-
-    /// <summary>Screen position (in this control) of a world point, or null if off-screen.</summary>
-    public Vector2? ToScreen(Vector3 world)
-    {
-        if (_camera.IsPositionBehind(world)) return null;
-        return _camera.UnprojectPosition(world) * Iso.PixelScale;
-    }
+    public Vector2? ToScreen(Vector3 world) => Iso.ToScreen(_camera, world);
 
     internal IEnumerable<OverlayItem> OverlayItems()
     {
@@ -912,9 +980,7 @@ public partial class DungeonView3D : Control
             var at = W(g.Pos).Lerp(W(gb.Pos), t) + Vector3.Up * (fig.Height * FigureScale + 0.3f);
             if (ToScreen(at) is not { } s) continue;
             var status = new List<string>();
-            if (g.StunTicks > 0) status.Add("stunned");
-            if (g.BurnTicks > 0) status.Add("burning");
-            if (g.SlowTicks > 0) status.Add("slowed");
+            GolemStatus.Append(g, status);
             if (g.State == GolemState.Halted) status.Add("halted");
             if (g.State == GolemState.Broken) status.Add("broken");
             yield return new OverlayItem(s, g.Name, g.Hp, g.MaxHp, g.MaxMana > 0 ? g.Mana / (float)g.MaxMana : -1, fig.Accent, null, string.Join(" ", status), true);
@@ -925,11 +991,10 @@ public partial class DungeonView3D : Control
             var mb = b.Monsters.FirstOrDefault(x => x.Id == m.Id) ?? m;
             var at = W(m.Pos).Lerp(W(mb.Pos), t) + Vector3.Up * (fig.Height * FigureScale + 0.25f);
             if (ToScreen(at) is not { } s) continue;
-            yield return new OverlayItem(s, m.Kind, m.Hp, m.MaxHp, -1, new Color("f07178"), m.Intent, "", false);
+            yield return new OverlayItem(s, m.Kind, m.Hp, m.MaxHp, -1, Palette.Danger, m.Intent, "", false);
         }
     }
 
-    /// <summary>Damage and healing numbers from HP changes in the last few ticks.</summary>
     internal IEnumerable<(Vector2 At, string Text, Color Color, float Age)> FloatingNumbers()
     {
         if (_timeline is null) yield break;
@@ -946,73 +1011,15 @@ public partial class DungeonView3D : Control
                 if (p is null || p.Hp == g.Hp || g.State is GolemState.Recalled or GolemState.Descended) continue;
                 if (ToScreen(W(g.Pos) + Vector3.Up * 1.6f) is { } s)
                 {
-                    yield return (s, g.Hp < p.Hp ? $"-{p.Hp - g.Hp}" : $"+{g.Hp - p.Hp}", g.Hp < p.Hp ? new Color("ff6b6b") : new Color("7bd88f"), age);
+                    yield return (s, g.Hp < p.Hp ? $"-{p.Hp - g.Hp}" : $"+{g.Hp - p.Hp}", g.Hp < p.Hp ? Palette.Danger : Palette.Ok, age);
                 }
             }
             foreach (var m in cur.Monsters)
             {
                 var p = prev.Monsters.FirstOrDefault(x => x.Id == m.Id);
                 if (p is null || p.Hp <= m.Hp || cur.Fog[grid.Idx(m.Pos)] != 2) continue;
-                if (ToScreen(W(m.Pos) + Vector3.Up * 1.4f) is { } s) yield return (s, $"-{p.Hp - m.Hp}", new Color("ffd27a"), age);
+                if (ToScreen(W(m.Pos) + Vector3.Up * 1.4f) is { } s) yield return (s, $"-{p.Hp - m.Hp}", Palette.Accent, age);
             }
-        }
-    }
-}
-
-internal sealed record OverlayItem(Vector2 At, string Name, int Hp, int MaxHp, float Mana, Color Color, IntentKind? Intent, string Status, bool IsGolem);
-
-/// <summary>Crisp full-resolution 2D drawing on top of the pixelated 3D view.</summary>
-internal sealed partial class DungeonOverlay(DungeonView3D view) : Control
-{
-    public DungeonOverlay() : this(null!)
-    {
-    }
-
-    public override void _Draw()
-    {
-        if (view is null) return;
-        var font = Ui.Mono;
-        foreach (var item in view.OverlayItems())
-        {
-            var w = item.IsGolem ? 64f : 44f;
-            var x = item.At.X - w / 2;
-            var y = item.At.Y;
-            if (item.IsGolem)
-            {
-                DrawString(font, new Vector2(x - 20, y - 8), item.Name, HorizontalAlignment.Center, w + 40, 12, new Color(item.Color, 0.95f));
-                if (item.Status.Length > 0) DrawString(font, new Vector2(x - 30, y - 22), item.Status, HorizontalAlignment.Center, w + 60, 11, new Color("f07178"));
-            }
-            DrawRect(new Rect2(x - 1, y - 1, w + 2, 7), new Color(0, 0, 0, 0.75f));
-            var frac = item.MaxHp > 0 ? Math.Clamp(item.Hp / (float)item.MaxHp, 0, 1) : 0;
-            var hpColor = item.IsGolem ? (frac > 0.3f ? new Color("7bd88f") : new Color("f07178")) : new Color("e0564f");
-            DrawRect(new Rect2(x, y, w * frac, 5), hpColor);
-            if (item.Mana >= 0)
-            {
-                DrawRect(new Rect2(x - 1, y + 6, w + 2, 4), new Color(0, 0, 0, 0.75f));
-                DrawRect(new Rect2(x, y + 7, w * item.Mana, 2), new Color("6fb6ff"));
-            }
-            if (item.Intent is { } intent)
-            {
-                var (glyph, color) = intent switch
-                {
-                    IntentKind.Attack => ("!", new Color("ff5a4f")),
-                    IntentKind.Chase => (">>", new Color("ffb347")),
-                    IntentKind.Flee => ("<<", new Color("7bd88f")),
-                    IntentKind.Move => ("~", new Color("9a8c7e")),
-                    _ => ("z", new Color("6a6f86")),
-                };
-                var c = new Vector2(item.At.X, y - 14);
-                DrawCircle(c, 9, new Color(0, 0, 0, 0.7f));
-                DrawArc(c, 9, 0, Mathf.Tau, 20, color, 1.5f);
-                DrawString(font, c + new Vector2(-12, 5), glyph, HorizontalAlignment.Center, 24, 13, color);
-            }
-        }
-        foreach (var (at, text, color, age) in view.FloatingNumbers())
-        {
-            var alpha = Math.Clamp(1 - age, 0, 1);
-            var p = at + new Vector2(-20, -age * 30);
-            DrawString(font, p + new Vector2(1, 1), text, HorizontalAlignment.Center, 40, 16, new Color(0, 0, 0, alpha * 0.8f));
-            DrawString(font, p, text, HorizontalAlignment.Center, 40, 16, new Color(color, alpha));
         }
     }
 }

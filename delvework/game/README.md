@@ -1,8 +1,19 @@
 # Delvework game (Godot 4 .NET)
 
 The playable game. All rules live in `Delvework.Core` (`../src`): the language, the
-simulation, lessons, skill trees and the save profile. This project draws them in 2.5D and
-plays the music. A delve is simulated instantly (deterministic for seed + code), then played back.
+simulation, lessons, skill trees and the save profile. This project draws them as low-poly 3D
+dioramas and plays the music. A delve is simulated instantly (deterministic for seed + code), then played back.
+
+## Hardware budget
+
+The game is built to stay light on the machine:
+
+- The Mobile renderer, capped at 60 fps with vsync (30 fps on the Low setting, 10 fps while the window is in the background).
+- 3D is drawn at half resolution (third on Low) and scaled up; no MSAA.
+- One shadow per scene, from the sun. Point lights never cast shadows (each 3D viewport has no shadow atlas for them).
+- Dungeon torches are glowing flames; only the six nearest the party carry a real light. Town keeps a pool of six night lamps; buildings use emissive glow only.
+- No SSAO or other heavy screen effects. Each 3D view stops rendering while hidden, and screens without 3D only redraw when something changes.
+- Settings > Graphics: Low turns off shadows and glow and shrinks 3D further. It is stored in `user://settings.cfg`.
 
 ## Running
 
@@ -60,7 +71,16 @@ Progress saves to `user://profile.json`.
 | `Screens/WorkshopScreen.cs` | Smelter and Bakery: script editor, animated furnace or oven, playback, shift log, preview on your stores |
 | `Goods.cs` | Material icons, colours, the stores bar and price rows |
 | `Screens/DelveScreen.cs` | Goals, editor per golem (autocomplete only offers what you know), 3D replay, timeline, inspector, log, results |
-| `View3D/` | The 2.5D look: a real 3D scene with a fixed isometric camera, rendered at half resolution with nearest filtering. `DungeonView3D` (fog, torches, figures, effects, HP bars and damage numbers), `TownView3D` (the village, rebuilt as you buy), `Figures` (golems and monsters from primitives), `Iso` (camera, procedural materials, prop helpers) |
+| `View3D/` | The diorama look: each scene is a floating board seen through a perspective camera. `DungeonView3D` (Kenney floor and wall tiles in chunks, fog, torches with a small light pool, figures, effects, HP bars and damage numbers; right-drag to pan, scroll to zoom), `TownView3D` (the village on its board, houses built from Kenney wall panels and rebuilt as you buy; drag to turn, scroll to zoom), `Figures` (golems and monsters), `Kenney` (loads the models), `Iso` (camera, flat materials, lights, prop helpers) |
+| `Graphics.cs` | Frame cap, resolution scale, shadows/glow, omni-light budget |
+| `View3D/OmniLightPool.cs` | Shared pool of nearest night/torch lights |
+
+## Models
+
+Low-poly models from [Kenney](https://kenney.nl) (CC0): Fantasy Town Kit, Mini Dungeon and Mini Characters, in
+`assets/kenney/` with their licenses. The editor imports them the first time the project is opened; without an
+import they are read straight from the `.glb` files. If a model is missing, the game draws a simple stand-in
+built from boxes and cylinders instead.
 | `Audio/` | Original music composed in code: a town theme with four layers that fade in as the village grows, a dungeon drone with bells, a combat layer when monsters are close, and sound effects |
 
 ## Command line

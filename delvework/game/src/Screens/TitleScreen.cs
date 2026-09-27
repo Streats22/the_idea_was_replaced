@@ -17,7 +17,7 @@ public partial class TitleScreen : Control
 
     public override void _Ready()
     {
-        var town = new TownView3D();
+        var town = new TownView3D { Interactive = false, TimeOfDay = 0.6f };
         town.SetAnchorsPreset(LayoutPreset.FullRect);
         AddChild(town);
         town.Refresh(App.Progress.Buildings(), App.Progress.Party);

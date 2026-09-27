@@ -6,10 +6,7 @@ using Godot;
 
 namespace Delvework.Game.Screens;
 
-/// <summary>
-/// The Almanac: everything found out by playing. The Bestiary grows from a silhouette to stats
-/// and lore (seen), to a weakness (studied) and finally the monster's own script (mastered).
-/// </summary>
+/// <summary>Discoveries and bestiary stages: seen → studied → mastered.</summary>
 public partial class AlmanacScreen : Control
 {
     public required App App { get; init; }
@@ -61,7 +58,7 @@ public partial class AlmanacScreen : Control
             b.Pressed += () =>
             {
                 App.Audio.Play(Sfx.Page);
-                Show(id);
+                ShowCategory(id);
             };
             tabs.AddChild(b);
             _tabs[cat] = b;
@@ -75,10 +72,10 @@ public partial class AlmanacScreen : Control
         var body = Ui.Row(16, Ui.Card(tabs), scroll);
         body.SizeFlagsVertical = SizeFlags.ExpandFill;
         root.AddChild(body);
-        Show(_category);
+        ShowCategory(_category);
     }
 
-    public void Show(string category)
+    public void ShowCategory(string category)
     {
         _category = category;
         _tabs[category].SetPressedNoSignal(true);
@@ -164,30 +161,34 @@ public partial class AlmanacScreen : Control
         return card;
     }
 
-    /// <summary>A small turning 3D model, or a dark silhouette while the monster is unknown.</summary>
     private static Control Portrait(string id, bool known)
     {
-        var (container, viewport) = Iso.PixelViewport();
-        container.CustomMinimumSize = new Vector2(120, 120);
-        container.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-        container.SizeFlagsVertical = SizeFlags.ShrinkCenter;
-        viewport.AddChild(new WorldEnvironment { Environment = Iso.Environment(new Color("0b0a09"), new Color("8a7a6a"), known ? 0.7f : 0.02f, 0.6f) });
-        var cam = Iso.Camera(1.9f);
-        viewport.AddChild(cam);
-        Iso.Aim(cam, new Vector3(0, 0.55f, 0), 10);
-        viewport.AddChild(new DirectionalLight3D { LightEnergy = known ? 1.1f : 0f, RotationDegrees = new Vector3(-45, 30, 0) });
-        var turn = new Turntable { Known = known };
-        viewport.AddChild(turn);
-        var fig = Figures.Monster(id);
-        turn.AddChild(fig.Root);
-        Iso.Cylinder(turn, 0.55f, 0.6f, 0.08f, new Vector3(0, 0.04f, 0), Iso.Flagstone(new Color("6b6259"), new Color("3a332d"), 0.55f, "dungeon-floor"), 16);
-        if (!known)
-        {
-            if (fig.Light is not null) fig.Light.Visible = false;
-            if (fig.Core is not null) fig.Core.EmissionEnergyMultiplier = 0.6f;
-        }
-        return container;
+        var accent = Figures.MonsterAccent(id);
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(120, 120) };
+        var face = known ? accent.Darkened(0.45f) : new Color("1a1816");
+        var rim = known ? accent : Palette.Border;
+        panel.AddThemeStyleboxOverride("panel", Ui.Box(face, rim, 10, 10));
+        var mark = Ui.Label(known ? Glyph(id) : "?", known ? accent.Lightened(0.35f) : Palette.Muted, known ? 42 : 48);
+        mark.HorizontalAlignment = HorizontalAlignment.Center;
+        mark.VerticalAlignment = VerticalAlignment.Center;
+        mark.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        mark.SizeFlagsVertical = SizeFlags.ExpandFill;
+        panel.AddChild(mark);
+        return panel;
     }
+
+    private static string Glyph(string id) => id switch
+    {
+        "slime" => "◎",
+        "skeleton" => "†",
+        "bat" => "⌃",
+        "fire_beetle" => "◈",
+        "troll" => "▲",
+        "spider" => "✱",
+        "mimic" => "▣",
+        "wisp" => "✧",
+        _ => "●",
+    };
 
     private void ShowScript(MonsterDef m)
     {
@@ -202,18 +203,5 @@ public partial class AlmanacScreen : Control
             editor,
             Ui.Row(8, Ui.Spacer(), close)), 680);
         close.Pressed += () => App.CloseModal(modal);
-    }
-}
-
-/// <summary>Slowly turns its children; bobs a little when <see cref="Known"/>.</summary>
-public partial class Turntable : Node3D
-{
-    public bool Known { get; init; }
-    private double _time;
-
-    public override void _Process(double delta)
-    {
-        _time += delta;
-        Rotation = new Vector3(0, (float)_time * (Known ? 0.7f : 0.2f), 0);
     }
 }

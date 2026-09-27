@@ -37,6 +37,7 @@ public partial class App : Control
         // Godot hosts .NET itself, so the project's InvariantGlobalization setting does not apply.
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        Graphics.Load();
         Theme = Ui.BuildTheme();
         SetAnchorsPreset(LayoutPreset.FullRect);
         var bg = new ColorRect { Color = Palette.Bg };
@@ -136,8 +137,15 @@ public partial class App : Control
         where T : Control
     {
         CloseAllModals();
-        _screen?.QueueFree();
+        if (_screen is not null)
+        {
+            // Out of the tree right away, so two 3D scenes never render in the same frame.
+            _screenLayer.RemoveChild(_screen);
+            _screen.QueueFree();
+        }
         _screen = screen;
+        // Screens without a live 3D scene only redraw when something changes.
+        OS.LowProcessorUsageMode = screen is not (TitleScreen or TownScreen or DelveScreen or WorkshopScreen);
         screen.SetAnchorsPreset(LayoutPreset.FullRect);
         _screenLayer.AddChild(screen);
         _fade.Color = new Color(Palette.Bg, 1);
@@ -337,6 +345,14 @@ public partial class App : Control
 
     public bool ModalOpen => _modals.Count > 0;
 
+    public override void _ExitTree() => View3D.Kenney.Clear();
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationApplicationFocusOut) Engine.MaxFps = Graphics.BackgroundFps;
+        else if (what == NotificationApplicationFocusIn) Engine.MaxFps = Graphics.FrameCap;
+    }
+
     public override void _UnhandledInput(InputEvent e)
     {
         if (e is not InputEventKey { Pressed: true, Keycode: Key.Escape }) return;
@@ -376,11 +392,22 @@ public partial class App : Control
             AudioDirector.SetVolumes(Profile.MusicVolume, Profile.SfxVolume);
             Audio.Play(Sfx.Click);
         };
+        var graphics = new OptionButton { FocusMode = FocusModeEnum.None, CustomMinimumSize = new Vector2(260, 0) };
+        graphics.AddItem("Normal: 60 fps, half-res 3D, sun shadow", 0);
+        graphics.AddItem("Low: 30 fps, third-res 3D, no shadows or glow", 1);
+        graphics.Selected = Graphics.Low ? 1 : 0;
+        graphics.ItemSelected += i =>
+        {
+            Graphics.SetLow(i == 1);
+            Audio.Play(Sfx.Click);
+        };
         var close = Ui.Button("Done", primary: true);
         var body = Ui.Column(14,
             Ui.Banner("Settings", 14),
             Ui.Row(12, Ui.Label("Music", Palette.Muted), Ui.Spacer(), music),
             Ui.Row(12, Ui.Label("Sound effects", Palette.Muted), Ui.Spacer(), sfx),
+            Ui.Row(12, Ui.Label("Graphics", Palette.Muted), Ui.Spacer(), graphics),
+            Ui.Para("3D is drawn smaller and scaled up so the GPU stays cool. The game also drops to 10 fps while its window is in the background.", Palette.Muted, 12),
             Ui.Row(8, Ui.Spacer(), close));
         var modal = ShowModal(body, 460);
         close.Pressed += () =>

@@ -1,5 +1,8 @@
 ; Engine configuration file.
 ; Godot 4 .NET. The game is a thin front end over Delvework.Core (../src).
+;
+; Hardware budget: the Mobile renderer (lighter than Forward+, no SSAO/SDFGI/SSR), 60 fps cap
+; with vsync, one directional shadow and small shadow maps. Point lights never cast shadows.
 
 config_version=5
 
@@ -8,7 +11,8 @@ config_version=5
 config/name="Delvework"
 config/description="Program a golem party, send it into the dungeon, read the replay."
 run/main_scene="res://main.tscn"
-config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+run/max_fps=60
+config/features=PackedStringArray("4.7", "C#", "Mobile")
 
 [display]
 
@@ -17,6 +21,7 @@ window/size/viewport_height=940
 window/size/window_width_override=1440
 window/size/window_height_override=860
 window/energy_saving/keep_screen_on=false
+window/vsync/vsync_mode=1
 
 [dotnet]
 
@@ -28,8 +33,11 @@ common/snap_controls_to_pixels=true
 
 [rendering]
 
-renderer/rendering_method="forward_plus"
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
 anti_aliasing/quality/msaa_3d=0
+lights_and_shadows/directional_shadow/size=2048
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
+lights_and_shadows/positional_shadow/atlas_size=0
 lights_and_shadows/positional_shadow/soft_shadow_filter_quality=0
 environment/defaults/default_clear_color=Color(0.051, 0.043, 0.039, 1)

@@ -1,0 +1,10 @@
+---
+description: Follow agents.md and keep memory.md updated for Delvework
+alwaysApply: true
+---
+
+Follow `/agents.md` for quality gates, OOP/DRY, and the hardware budget.
+
+Before commit or push (only when the user asks to commit/push): code review → security review → tests and build green.
+
+Update `/memory.md` whenever you learn or fix something lasting (bugs, budget, process). Append to the Log section; keep Common issues current.

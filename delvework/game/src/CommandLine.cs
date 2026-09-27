@@ -266,7 +266,7 @@ public static class CommandLine
         await Frames(app, 2);
         foreach (var e in p.AlmanacEntries.Select(e => e.Category).Distinct())
         {
-            almanac.Show(e);
+            almanac.ShowCategory(e);
             await Frames(app, 1);
         }
         GD.Print($"smoke: almanac {p.FoundCount} of {p.AlmanacEntries.Count} found");

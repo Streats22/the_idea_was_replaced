@@ -47,12 +47,12 @@ public static class Goods
     /// <summary>What each top bar showed last, so a new bar can count up from there.</summary>
     private static readonly Dictionary<string, int> Shown = new(StringComparer.Ordinal);
 
-    /// <summary>A chip whose number rolls from the value last shown to <paramref name="amount"/>.</summary>
-    private static Control Counter(string id, int amount, int size, Color? color = null)
+    /// <summary>A chip (or a <paramref name="tile"/>) whose number rolls from the value last shown to <paramref name="amount"/>.</summary>
+    private static Control Counter(string id, int amount, int size, Color? color = null, bool tile = false)
     {
         var from = Shown.GetValueOrDefault(id, amount);
         Shown[id] = amount;
-        var chip = Chip(id, from, size, color);
+        var chip = tile ? Tile(id, from, color) : Chip(id, from, size, color);
         if (from == amount) return chip;
         var label = chip.GetChild<Label>(1);
         label.AddThemeColorOverride("font_color", amount > from ? Palette.Ok : Palette.Danger);
@@ -76,14 +76,30 @@ public static class Goods
         return row;
     }
 
-    /// <summary>Gold plus every material the profile has (or has ever needed), for top bars.</summary>
-    public static HBoxContainer Bar(Profile profile, int size = 15)
+    /// <summary>A big icon over its count, like a resource counter floating over the farm.</summary>
+    public static Control Tile(string id, int amount, Color? color = null)
     {
-        var row = Ui.Row(14, Counter(Resources.Gold, profile.Gold, size + 1, Palette.Accent));
+        var icon = Ui.Label(Icon(id), ColorOf(id), 24);
+        icon.HorizontalAlignment = HorizontalAlignment.Center;
+        var count = Ui.Label(amount.ToString(), color ?? Palette.Text, 13);
+        count.HorizontalAlignment = HorizontalAlignment.Center;
+        count.AddThemeFontOverride("font", Ui.Mono);
+        var col = Ui.Column(0, icon, count);
+        col.CustomMinimumSize = new Vector2(46, 0);
+        col.TooltipText = Title(id);
+        col.MouseFilter = Control.MouseFilterEnum.Pass;
+        icon.MouseFilter = count.MouseFilter = Control.MouseFilterEnum.Pass;
+        return col;
+    }
+
+    /// <summary>Gold plus every material the profile has (or has ever needed), for top bars; as big tiles with <paramref name="tiles"/>.</summary>
+    public static HBoxContainer Bar(Profile profile, int size = 15, bool tiles = false)
+    {
+        var row = Ui.Row(tiles ? 6 : 14, Counter(Resources.Gold, profile.Gold, size + 1, Palette.Accent, tiles));
         foreach (var id in Resources.All)
         {
             var n = profile.Amount(id);
-            if (n > 0 || Shown.GetValueOrDefault(id) > 0) row.AddChild(Counter(id, n, size));
+            if (n > 0 || Shown.GetValueOrDefault(id) > 0) row.AddChild(Counter(id, n, size, null, tiles));
         }
         return row;
     }
