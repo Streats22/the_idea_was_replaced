@@ -144,6 +144,12 @@ Owner’s PC has hard-crashed / needed RAM reseating. Crashing is not acceptable
 - Resolved with `Graphics`/`Iso` scale, 2D Almanac, `OmniLightPool`, smoke under `_world`, shared accents/status.
 - Refactor pass: `Iso.Mount`, `OmniLightPool`, `DungeonOverlay` file, fewer comments, DRY accents.
 
+### 2026-09-27 — Commit/push/launch tooling
+
+- User-level installs (no sudo): .NET 8 at `~/.dotnet`, Godot 4.7.2 Mono at `~/Applications/GodotMono-4.7.2/Godot_mono.app`.
+- Launch: `~/.dotnet` on PATH, then `Godot_mono.app/.../Godot --path delvework/game`.
+- Rebased onto remote “learn by delving” UI; kept brass frames + hanging signs; kept perspective dioramas + light pools. Merged rune tablets / `ShiftPixels`.
+
 ### 2026-09-27 — TFWR growth beat (design north star)
 
 Owner loves TFWR’s feeling: **start tiny → expand the space → then make it move/act**.
